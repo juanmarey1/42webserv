@@ -1,0 +1,2223 @@
+NOTES::::
+:::::::::
+
+Great! Tackling the Webserv project like an NGINX expert means approaching it with clarity on HTTP fundamentals, network programming, configuration parsing, and a scalable server architecture. Here's a step-by-step expert roadmap tailored for 42 Madrid:
+
+🧭 PHASE 0 — Get Oriented
+📚 Learn Before:
+HTTP 1.1 spec: RFC 2616
+
+Basic NGINX config examples (server, location, listen, error_page, etc.)
+
+C++98 standard (required by Webserv)
+
+✅ Step 1: Understand Project Requirements
+Goal: Grasp what your server must do.
+
+🔍 What to learn:
+Read and understand the subject PDF.
+
+List mandatory features: handling GET, POST, DELETE, parsing config files, CGI, error handling, chunked responses, etc.
+
+Understand constraints: C++98, no external libs, multi-client support.
+
+✅ Step 2: Plan the Architecture
+Goal: Create a modular, scalable, and testable structure.
+
+🧠 Learn Before:
+How NGINX is modular (worker processes, request pipeline)
+
+Basics of event-driven or select/poll-based I/O
+
+What’s a Reactor pattern
+
+🔧 Actions:
+Sketch your main modules:
+
+Server manager
+
+Config parser
+
+Connection handler (poll/epoll)
+
+Request parser
+
+Response builder
+
+CGI handler
+
+Error handling
+
+Plan your classes and responsibilities
+
+✅ Step 3: Implement the Config Parser
+Goal: Parse a custom webserv.conf file like NGINX.
+
+🧠 Learn Before:
+How NGINX uses server {} and location {} blocks
+
+Recursion-based config parsing
+
+Tokenization, bracket matching
+
+🔧 Actions:
+Create a lexer/tokenizer
+
+Create a recursive parser that builds a tree of configs
+
+Validate inheritance of configs (e.g., root, index from server to location)
+
+✅ Step 4: Set Up the Server Socket(s)
+Goal: Bind sockets based on the config file.
+
+🧠 Learn Before:
+socket(), bind(), listen(), accept()
+
+poll() vs select() vs epoll() (choose poll for POSIX portability)
+
+Handling multiple ports (e.g., multiple listen blocks)
+
+🔧 Actions:
+Loop over server configs → create listening sockets
+
+Use poll() to monitor incoming connections
+
+✅ Step 5: Implement Connection Management
+Goal: Accept clients and handle requests non-blockingly.
+
+🧠 Learn Before:
+Non-blocking sockets
+
+Reusing file descriptors and buffers
+
+Handling multiple clients efficiently
+
+🔧 Actions:
+Accept new connections
+
+Read from sockets, parse requests
+
+Store partial reads (chunked or large bodies)
+
+Detect client disconnections
+
+✅ Step 6: Parse HTTP Requests
+Goal: Build a robust request parser.
+
+🧠 Learn Before:
+HTTP request format: Request-Line, headers, optional body
+
+Chunked transfer encoding
+
+URL decoding and header validation
+
+🔧 Actions:
+Use a state machine to parse request lines, headers, and body
+
+Handle edge cases: malformed requests, unsupported methods
+
+✅ Step 7: Route the Request
+Goal: Match the request to the correct server and location block.
+
+🧠 Learn Before:
+NGINX’s routing logic: listen, server_name, location /foo
+
+How wildcard matching works (location /path/ {} vs exact match)
+
+🔧 Actions:
+Implement logic to match requests to the best-fitting config block
+
+Apply inherited values (e.g., root, methods, index)
+
+✅ Step 8: Generate Responses
+Goal: Build responses for GET, POST, DELETE.
+
+🧠 Learn Before:
+How file serving works (open/read/send)
+
+Autoindex behavior (when index file missing)
+
+Common HTTP status codes
+
+🔧 Actions:
+For GET: serve static file or autoindex directory
+
+For POST: handle form data and store it if needed
+
+For DELETE: delete file and return proper code
+
+Add headers (Content-Type, Content-Length, Date, etc.)
+
+✅ Step 9: Implement CGI Handling
+Goal: Support execution of CGI scripts.
+
+🧠 Learn Before:
+CGI environment variables (REQUEST_METHOD, SCRIPT_FILENAME, etc.)
+
+How to fork(), execve(), and set up pipes
+
+Timeouts and input buffering
+
+🔧 Actions:
+On matching location, fork a process to run the CGI
+
+Pipe the request body to stdin, read from stdout
+
+Parse and forward headers in CGI output
+
+✅ Step 10: Handle Errors and Status Codes
+Goal: Show correct status and custom error pages.
+
+🧠 Learn Before:
+NGINX’s error_page directive behavior
+
+What 404, 405, 500, 413, etc. mean
+
+🔧 Actions:
+Return correct error codes
+
+If error_page 404 /404.html; is defined, serve that page
+
+Default to generic error message if not defined
+
+✅ Step 11: Test Thoroughly
+Goal: Ensure robustness and NGINX-like behavior.
+
+🧪 Actions:
+Use curl, ab, or Postman to test:
+
+Chunked uploads
+
+CGI execution
+
+Invalid requests
+
+Multiple simultaneous connections
+
+Write tests for config parsing edge cases
+
+✅ Step 12: Optimize and Polish
+Goal: Handle edge cases and scale gracefully.
+
+⚙️ Tips:
+Implement timeout handling (e.g., 408)
+
+Cap max body size (413)
+
+Clean up zombie CGI processes
+
+Log requests and errors like access.log/error.log
+
+✅ Step 13: Bonus / Advanced
+If you want to go beyond:
+
+Support redirects (return 301 ...)
+
+Use epoll (Linux) or kqueue (BSD/Mac)
+
+IPv6 support
+
+Add reverse proxy features (simulate proxy_pass)
+
+🚀 Final Advice
+Phase	Focus
+Week 1	HTTP, config parsing, sockets
+Week 2	request parsing, response, CGI
+Week 3	error handling, edge cases
+Week 4	optimization, testing, polish
+
+Take inspiration from NGINX, but don’t overengineer. Focus on matching the subject's requirements first, then add complexity.
+
+Would you like a diagram or starter code structure for this plan?
+
+
+···········································
+Step 1: Understand Project Requirements····
+···········································
+
+GOAL: HTTP 1.1 web server in c++98.
+	-It supports multiple clients
+	-Parses a config file
+	-Serves static files and runs CGI
+	-Handles common HTTP methods (GET, POST, DELETE)
+	-Manages errors gracefully
+1. NETWORKING CORE -> Create server sockets, use poll() and accept connections non-blockingly
+2. CONFIG PARSER -> Parse NGINX-style configuration. Support server, location, listen, etc. and store inheritance relationships
+3. REQUEST HANDLING -> Parse raw HTTP requests (Request-Line + Headers + Body). Handle GET, POST, DELETE. Store partially received requests if needed
+4. CGI HANDLER -> Use fork()/execve() to run scripts. Use pipe() and dup2() to capture input/output. Set environment variables from request
+5. RESPONSE GENERATOR -> Build a valid HTTP/1.1 response with status, headers, body. Handle chunked encoding if needed. Support Connection: keep-alive or close 
+6. ERROR HANDLING -> Detect and handle malformed requests, suport custom error_page per status code, return valid HTTP error responses
+7. ROUTING LOGIC -> Match request to correct server and location based on port, host and request path. Apply inherited config values
+
+WHAT TO LEARN:
+Look for:
+	-Required features: Serve static files (GET), handle POST and DELETE methods, CGI execution, custom error pages, multiple clients, location and server block parsing, method restrictions.
+	-Forbidden behavior: No memory leaks, no segmentation faults/undefined behavior, no infinite loops or hangs, not use forbidden system calls, don't use high-level libraries
+	-Restrictions: C++98 only, no STL containers except the allowed, no use of std::thread or async I/O, no boost
+	-Evaluation criteria: compilation without warnings/errors, memory leaks: test with valgrind, correct behavior under edge cases, respect HTTP/1.1 specifications, handling malformed input correctly, code readability, structure and organization.
+	-Examples or edge cases: Provided examples of input/output, edge case hints, specific behaviors to match, required default behavior when config is incomplete
+
+Mandatory features:
+	-Core functionalities: GET, POST, DELETE
+	-Config file parsing: Parse config file, create internal structures for server and location blocks, apply inheritance logic
+	-CGI support: support cgi-bin scripts. Use fork, execve, dup2 and environment variables
+	-Error handling: status codes and custom error pages
+	-Chunked transfer encoding: Handle incoming/outgoing chunked requests/responses. (especially for POST bodies)
+	-Timeouts and Robustness: Close timeouts client connections. Avoid memory leaks or crashing on malformed requests
+
+CONSTRAINTS & LIMITATIONS
+	-c++98 only
+	-No external libraries
+	-Must support multiple clients (poll())
+	-Everything custom 
+	-Deterministic behavior
+
+RECOMMENDED INTERNAL MODULES
+	-ServerManager -> Listens, accepts connections and manages poll()
+	-RequestParser -> Parses HTTP requests line by line
+	-Router -> Matches request to server + location
+	-ResponseBuilder -> Generates valid HTTP/1.1 responses
+	-CGIHandler -> Runs CGI scripts and gets outputt
+	-ConfigParser -> Parses NGINX-like config file
+	-ClientSession -> Tracks state of each connection
+	-Utils -> Helpers: string split, MIME types, error pages
+ServerManager accepts new clients and creates a ClientSession.
+
+ClientSession reads raw data from socket.
+
+RequestParser inside ClientSession parses HTTP request.
+
+Router determines which server and location block applies.
+
+ResponseBuilder prepares response headers and body.
+
+If CGI needed, CGIHandler runs script and collects output.
+
+ResponseBuilder sends response to client.
+
+ServerManager monitors for timeout or closure.
+
+
+
+SUGGESTED TESTING PLAN
+	-Serve static file
+	-Upload with POST
+	-Delete a file
+	-Malformed request
+	-CGI test
+	-Config with multiple servers
+	-Autoindex
+
+
+·····································
+Step 2: Plan the Architecture········
+·····································
+
+LEARN BEFOREHAND:
+	-How NGINX modularizes its worker processes and request handling pipeline
+		-Master process: Reads config, manages worker processes 
+		-Workers processes: Do the actual work (you won't fork multiple workers, but your event loop plays the same role)
+		-The event loop: each worker process runs an event loop, using poll() to monitor all open sockets 
+		-For each connection, it handles I/O events and passes them through a pipeline of request processing phases 
+		-Because we have many clients connected at once if you handled one at a time (blocking), others would have to wait. 
+		-With an event-driven approach : Can watch all sockets, see who is ready, handle them as soon as they are ready, can handle them without blocking 
+		-poll() is a system call that notifies you when one socket is ready. That's the event in the event loop 
+		-CALL CENTER: 
+			-Calls in -> POLLIN on server socket -> Accept call (accept())
+			-Starts talking -> POLLIN on client socket -> Listen (recv())
+			-Waits for answer -> POLLOUT -> Respond (send())
+		-PER CLIENT: 
+			1. Client connects -> accept() -> new socket 
+			2. Client sends HTTP request -> recv() -> buffer request 
+			3. Server parses request and prepares response 
+			4. Server writes response -> send()
+			5. Close connection (unless keep-alive)
+			Each of these stages correspond to a different phase and I/O event 
+		-REQUEST HANDLING PIPE: 
+			1. Read the request -> recv(fd, buffer, ...) non-blockingly.
+				-Because: client may send request in parts, buffer may not have the full request, you have to wait until you have enough to parse the request 
+				-Store the data in a per-client buffer 
+			2. Parse the request line -> GET /index.html HTTP/1.1 (example)
+				-Use std::istringstream and simple string splitting
+			3. Parse headers 
+				-Store them in a std::map<std::string, std::string> for easy access 
+				-Headers are separated by \r\n and section ends at \r\n\r\n
+			4. Choose a server block -> Look at socket IP + port and the Host header 
+				-Select the best server block from the config file 
+				-If two servers match same port but different server_name, use Host: to disambiguate
+			5. Choose a location block -> Within the selected server block, match the URI
+				-Match by longest prefix
+				-Later add regex support if needed 
+			6. Check allowed methods -> Inside location block, check if method is allowed 
+				-If client sends method not allowed return 405 Method Not Allowed 
+			7. Serve static file or run CGI  
+				-If it's static file: Build a full path, check if file exists, open and read the file, build a response with Content-Type, etc.
+				-If CGI: Prepare environmentt variables, use fork() + execve() to run the script, capture its output and turn it into HTTP response 
+			8. Generate response  
+				-Compose status line, headers and body into a single buffer 
+			9. Write response  -> Use send(fd, response_buffer, ...) non-blockingly 
+				-May take multiple sends, keep track of how much has been sent per socket
+			10. Close or keep-alive 
+				-If keep-alive, keep socket open for next request 
+				-Otherwise, close it after the response is sent
+
+			switch (client_state) {
+    			case READING:
+    			    recv(fd, buffer);
+    			    if (full_request_received)
+    			        client_state = PARSING;
+    			    break;
+
+    			case PARSING:
+    			    parse_request_line_and_headers();
+    			    select_server_and_location_block();
+    			    validate_method();
+    			    client_state = PROCESSING;
+    			    break;
+
+    			case PROCESSING:
+    			    if (is_cgi) run_cgi();
+    			    else load_static_file();
+    			    build_http_response();
+    			    client_state = WRITING;
+    			    break;
+
+    			case WRITING:
+    			    send(fd, response);
+    			    if (connection_close)
+    			        close(fd);
+    			    else
+    			        client_state = READING;
+    			    break;
+			}
+		-WEBSERV DESIGN 
+			1. Worker process -> poll() loop in ServerManager. Accepts connections, reads/writes to clients 
+			2. Connection handling -> ClientConnection class. Holds per-client state: buffer, socket FD, parsing state, timeout 
+			3. Request phases -> State machine in RequestParser. Parse requests: line->headers->body. Can reuse between clients  
+			4. Modules -> CGIHandler, ResponseBuilder, etc. Modular classes to handle this. 
+			5. Config hierarchy -> ServerConfig, LocationConfig. Parsed from your config file. Each server has multiple locations 
+			6. Routing logic -> Router class. Chooses matching ServerConfig + LocationConfig. Applies root, index, etc.  
+		
+		-CLASS BY CLASS BREAKDOWN :
+			1. ServerManager: 
+				-Starts all listening sockets from config 
+				-Runs poll() loop 
+				-Accepts new clients 
+				-Passes controll to ClientConnection 
+				RESPONSIBILITY: Main controller of your server - sets up sockets and drives poll() loop 
+				CORE TASKS: 
+					-Load server configs 
+					-Create/bind/listen sockets for each (IP, port) 
+					-Add server sockets to the pollfd list 
+					-In the main loop: Accept new clients if a listening socket is ready, read/write from client FDs, close FDs on disconnect or error 
+				KEY DATA: 
+					std::map<int, ServerConfig> listeningSockets;
+					std::vector<pollfd> pollFds;
+					std::map<int, ClientConnection> clients;
+
+				✅ ServerManager.hpp
+				cpp
+				Copy code
+				#ifndef SERVER_MANAGER_HPP
+				#define SERVER_MANAGER_HPP
+
+				#include <map>
+				#include <vector>
+				#include <string>
+				#include <poll.h>
+				#include "ServerConfig.hpp"
+				#include "ClientConnection.hpp"
+
+				class ServerManager {
+				private:
+				    std::map<int, ServerConfig> listeningSockets;
+				    std::vector<struct pollfd> pollFds;
+				    std::map<int, ClientConnection> clients;
+
+				public:
+				    ServerManager();
+				    ~ServerManager();
+
+				    void loadConfig(const std::vector<ServerConfig>& configs);
+				    void run();
+
+				private:
+				    void setupSocket(const ServerConfig& config);
+				    void acceptNewConnection(int listeningFd);
+				    void handleClientIO(int clientFd);
+				    void removeClient(int clientFd);
+				};
+
+				#endif
+				✅ ServerManager.cpp
+				cpp
+				Copy code
+				#include "ServerManager.hpp"
+				#include <iostream>
+				#include <sys/socket.h>
+				#include <netinet/in.h>
+				#include <arpa/inet.h>
+				#include <fcntl.h>
+				#include <unistd.h>
+				#include <cstring>
+
+				ServerManager::ServerManager() {}
+
+				ServerManager::~ServerManager() {
+				    for (std::map<int, ClientConnection>::iterator it = clients.begin(); it != clients.end(); ++it)
+				        close(it->first);
+				    for (std::map<int, ServerConfig>::iterator it = listeningSockets.begin(); it != listeningSockets.end(); ++it)
+				        close(it->first);
+				}
+
+				void ServerManager::loadConfig(const std::vector<ServerConfig>& configs) {
+				    for (size_t i = 0; i < configs.size(); ++i)
+				        setupSocket(configs[i]);
+				}
+
+				void ServerManager::setupSocket(const ServerConfig& config) {
+				    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+				    if (sockfd < 0) return;
+
+				    int opt = 1;
+				    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+				    fcntl(sockfd, F_SETFL, O_NONBLOCK); // Set to non-blocking
+
+				    sockaddr_in addr;
+				    std::memset(&addr, 0, sizeof(addr));
+				    addr.sin_family = AF_INET;
+				    addr.sin_port = htons(config.port);
+				    inet_pton(AF_INET, config.host.c_str(), &addr.sin_addr);
+
+				    if (bind(sockfd, (sockaddr*)&addr, sizeof(addr)) < 0 || listen(sockfd, SOMAXCONN) < 0) {
+				        close(sockfd);
+				        return;
+				    }
+
+				    pollfd pfd;
+				    pfd.fd = sockfd;
+				    pfd.events = POLLIN;
+				    pollFds.push_back(pfd);
+				    listeningSockets[sockfd] = config;
+
+				    std::cout << "Listening on " << config.host << ":" << config.port << " (fd " << sockfd << ")\n";
+				}
+
+				void ServerManager::run() {
+				    while (true) {
+				        int nReady = poll(&pollFds[0], pollFds.size(), 1000);
+				        if (nReady < 0) continue;
+
+				        for (size_t i = 0; i < pollFds.size(); ++i) {
+				            int fd = pollFds[i].fd;
+
+				            if (pollFds[i].revents & POLLIN) {
+				                if (listeningSockets.count(fd))
+				                    acceptNewConnection(fd);
+				                else
+				                    handleClientIO(fd);
+				            }
+				        }
+				    }
+				}
+
+				void ServerManager::acceptNewConnection(int listeningFd) {
+				    sockaddr_in clientAddr;
+				    socklen_t len = sizeof(clientAddr);
+				    int clientFd = accept(listeningFd, (sockaddr*)&clientAddr, &len);
+				    if (clientFd < 0) return;
+
+				    fcntl(clientFd, F_SETFL, O_NONBLOCK);
+
+				    pollfd pfd;
+				    pfd.fd = clientFd;
+				    pfd.events = POLLIN;
+				    pollFds.push_back(pfd);
+				    clients[clientFd] = ClientConnection(clientFd);
+
+				    std::cout << "Accepted client (fd " << clientFd << ")\n";
+				}
+
+				void ServerManager::handleClientIO(int clientFd) {
+				    ClientConnection& client = clients[clientFd];
+				    if (!client.handleRead()) {
+				        removeClient(clientFd);
+				    }
+				}
+
+				void ServerManager::removeClient(int clientFd) {
+				    close(clientFd);
+				    clients.erase(clientFd);
+				    for (size_t i = 0; i < pollFds.size(); ++i) {
+				        if (pollFds[i].fd == clientFd) {
+				            pollFds.erase(pollFds.begin() + i);
+				            break;
+				        }
+				    }
+				    std::cout << "Closed client (fd " << clientFd << ")\n";
+				}
+
+			2. ClientConnection: 
+				-Stores: socket FD, buffer, state, parsed request object, timestamp 
+				-Calls: RequestParser, Router, ResponseBuilder
+				RESPONSIBILITY: Represents one client connection - tracks its status and buffers 
+				STORES:
+					-int socketFd
+					-std::string readBuffer, writeBuffer
+					-enum State {READING, PARSING, WRITING}
+					-Request request 
+					-Timestamp for timeout 
+				METHODS: 
+					-bool readFromClient()
+					-bool writeToClient()
+					-bool isReadyToWrite()
+					-bool isTimedOut()
+
+				✅ ClientConnection.hpp
+				cpp
+				Copy code
+				#ifndef CLIENT_CONNECTION_HPP
+				#define CLIENT_CONNECTION_HPP
+
+				#include <string>
+				#include <ctime>
+				#include "Request.hpp"
+
+				class ClientConnection {
+				public:
+				    enum State {
+				        READING,
+				        PARSING,
+				        WRITING
+				    };
+
+				private:
+				    int socketFd;
+				    std::string readBuffer;
+				    std::string writeBuffer;
+				    State currentState;
+				    Request request;
+				    std::time_t lastActivity;
+
+				public:
+				    ClientConnection(int fd);
+
+				    bool readFromClient();     // returns false on error or disconnect
+				    bool writeToClient();      // returns false on error or disconnect
+				    bool isReadyToWrite() const;
+				    bool isTimedOut() const;
+
+				    int getFd() const;
+				    State getState() const;
+				    void setState(State state);
+				};
+
+				#endif
+				✅ ClientConnection.cpp
+				cpp
+				Copy code
+				#include "ClientConnection.hpp"
+				#include <unistd.h>
+				#include <sys/socket.h>
+				#include <iostream>
+				#include <ctime>
+				#include <errno.h>
+				#include <cstring>
+
+				ClientConnection::ClientConnection(int fd)
+				    : socketFd(fd), currentState(READING), lastActivity(std::time(0)) {}
+
+				bool ClientConnection::readFromClient() {
+				    char buffer[1024];
+				    ssize_t bytes = recv(socketFd, buffer, sizeof(buffer), 0);
+
+				    if (bytes < 0) {
+				        if (errno == EWOULDBLOCK || errno == EAGAIN) return true; // try again later
+				        return false; // error
+				    } else if (bytes == 0) {
+				        return false; // client disconnected
+				    }
+
+				    readBuffer.append(buffer, bytes);
+				    lastActivity = std::time(0);
+
+				    // Minimal mock "parsing" trigger for demonstration:
+				    if (readBuffer.find("\r\n\r\n") != std::string::npos) {
+				        currentState = WRITING;
+				        writeBuffer = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello, world!";
+				    }
+
+				    return true;
+				}
+
+				bool ClientConnection::writeToClient() {
+				    ssize_t bytes = send(socketFd, writeBuffer.c_str(), writeBuffer.size(), 0);
+				    if (bytes < 0) {
+				        if (errno == EWOULDBLOCK || errno == EAGAIN) return true;
+				        return false;
+				    }
+
+				    writeBuffer.erase(0, bytes);
+				    lastActivity = std::time(0);
+
+				    if (writeBuffer.empty()) {
+				        // Close after sending (for simplicity)
+				        return false;
+				    }
+
+				    return true;
+				}
+
+				bool ClientConnection::isReadyToWrite() const {
+				    return currentState == WRITING && !writeBuffer.empty();
+				}
+
+				bool ClientConnection::isTimedOut() const {
+				    return std::time(0) - lastActivity > 10; // 10s timeout example
+				}
+
+				int ClientConnection::getFd() const {
+				    return socketFd;
+				}
+
+				ClientConnection::State ClientConnection::getState() const {
+				    return currentState;
+				}
+
+				void ClientConnection::setState(State state) {
+				    currentState = state;
+				}
+
+			3. RequestParser:
+				-Implements a state machine (READ_LINE, READ_HEADERS, READ_BODY)
+				-Produces a request object with : method, URI, headers, body, HTTP version
+				RESPONSIBILITY: Implements a state machine to turn the raw buffer into a Request object 
+				STATES: 
+					-enum State {READ_REQUEST_LINE, READ_HEADERS, READ_BODY, COMPLETE}
+				PARSES: 
+					-Request line -> method, URI, version 
+					-Headers -> Host, Content-Length, etc. 
+					-Body -> Handles normal & chunked transfers
+				OUTPUT: returns a Request structure containing:
+					-std::string method;
+					-std::string uri;
+					-std::string httpVersion;
+					-std::map<std::string, std::string> headers
+					-std::string body; 
+					
+				✅ 1. Request.hpp
+				cpp
+				Copy code
+				#ifndef REQUEST_HPP
+				#define REQUEST_HPP
+
+				#include <string>
+				#include <map>
+
+				struct Request {
+				    std::string method;
+				    std::string uri;
+				    std::string httpVersion;
+				    std::map<std::string, std::string> headers;
+				    std::string body;
+				};
+
+				#endif
+				✅ 2. RequestParser.hpp
+				cpp
+				Copy code
+				#ifndef REQUEST_PARSER_HPP
+				#define REQUEST_PARSER_HPP
+
+				#include "Request.hpp"
+				#include <string>
+				#include <sstream>
+
+				class RequestParser {
+				public:
+				    enum State {
+				        READ_REQUEST_LINE,
+				        READ_HEADERS,
+				        READ_BODY,
+				        COMPLETE,
+				        ERROR
+				    };
+
+				private:
+				    State state;
+				    Request request;
+				    std::string buffer;
+				    size_t contentLength;
+
+				public:
+				    RequestParser();
+
+				    State getState() const;
+				    const Request& getRequest() const;
+				    void appendData(const std::string& data);
+				    void reset();
+
+				private:
+				    void parseBuffer();
+				    bool parseRequestLine(std::istringstream& stream);
+				    bool parseHeaders(std::istringstream& stream);
+				    void parseBody();
+				};
+
+				#endif
+				✅ 3. RequestParser.cpp
+				cpp
+				Copy code
+				#include "RequestParser.hpp"
+				#include <sstream>
+				#include <algorithm>
+				#include <cctype>
+
+				RequestParser::RequestParser()
+				    : state(READ_REQUEST_LINE), contentLength(0) {}
+
+				void RequestParser::appendData(const std::string& data) {
+				    buffer += data;
+				    parseBuffer();
+				}
+
+				RequestParser::State RequestParser::getState() const {
+				    return state;
+				}
+
+				const Request& RequestParser::getRequest() const {
+				    return request;
+				}
+
+				void RequestParser::reset() {
+				    buffer.clear();
+				    request = Request();
+				    contentLength = 0;
+				    state = READ_REQUEST_LINE;
+				}
+
+				void RequestParser::parseBuffer() {
+				    if (state == COMPLETE || state == ERROR) return;
+
+				    std::istringstream stream(buffer);
+
+				    if (state == READ_REQUEST_LINE) {
+				        if (!parseRequestLine(stream)) return;
+				        state = READ_HEADERS;
+				    }
+
+				    if (state == READ_HEADERS) {
+				        if (!parseHeaders(stream)) return;
+				        state = request.headers.count("Content-Length") ? READ_BODY : COMPLETE;
+
+				        if (state == READ_BODY) {
+				            contentLength = std::atoi(request.headers["Content-Length"].c_str());
+				        }
+				    }
+
+				    if (state == READ_BODY) {
+				        parseBody();
+				    }
+
+				    if (state == COMPLETE || state == ERROR) {
+				        buffer.clear(); // discard consumed data
+				    }
+				}
+
+				bool RequestParser::parseRequestLine(std::istringstream& stream) {
+				    std::string line;
+				    std::getline(stream, line);
+				    if (line.find("\r") == std::string::npos) return false;
+
+				    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+
+				    std::istringstream lineStream(line);
+				    if (!(lineStream >> request.method >> request.uri >> request.httpVersion)) {
+				        state = ERROR;
+				        return false;
+				    }
+
+				    return true;
+				}
+
+				bool RequestParser::parseHeaders(std::istringstream& stream) {
+				    std::string line;
+				    while (std::getline(stream, line)) {
+				        if (line == "\r" || line.empty()) break; // End of headers
+				        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+
+				        size_t sep = line.find(":");
+				        if (sep == std::string::npos) {
+				            state = ERROR;
+				            return false;
+				        }
+
+				        std::string key = line.substr(0, sep);
+				        std::string value = line.substr(sep + 1);
+
+				        // Trim whitespace
+				        key.erase(std::remove_if(key.begin(), key.end(), ::isspace), key.end());
+				        value.erase(0, value.find_first_not_of(" \t"));
+				        request.headers[key] = value;
+				    }
+
+				    return true;
+				}
+
+				void RequestParser::parseBody() {
+				    size_t pos = buffer.find("\r\n\r\n");
+				    if (pos == std::string::npos) return;
+
+				    std::string body = buffer.substr(pos + 4); // after headers
+
+				    if (body.size() >= contentLength) {
+				        request.body = body.substr(0, contentLength);
+				        state = COMPLETE;
+				    }
+				}
+
+			4. Router: 
+				-Chooses best ServerConfig 
+				-Then chooses best LocationConfig 
+				-Validates allowed methods, returns matched config 
+				RESPONSIBILITY: Match Request to the correct ServerConfig and LocationConfig
+				LOGIC: 
+					-Match IP:port -> ServerConfig 
+					-Match Host header -> server_name (if present)
+					-Match URI prefix -> longest-matching LocationConfig 
+					-Check method -> allowed in location ?
+				OUTPUT: Matched config and location block 
+
+				1. Definitions: ServerConfig and LocationConfig (simplified example)
+				cpp
+				Copy code
+				#ifndef CONFIG_HPP
+				#define CONFIG_HPP
+				
+				#include <string>
+				#include <vector>
+				#include <set>
+				
+				struct LocationConfig {
+				    std::string path;                    // URI prefix, e.g. "/images/"
+				    std::set<std::string> allowedMethods; // e.g. {"GET", "POST"}
+				    std::string root;                    // e.g. "/var/www/html/images"
+				    // add other location-specific configs here
+				};
+				
+				struct ServerConfig {
+				    std::string ip;                     // e.g. "127.0.0.1"
+				    int port;                          // e.g. 8080
+				    std::vector<std::string> server_names; // e.g. {"example.com", "www.example.com"}
+				    std::vector<LocationConfig> locations;
+				    // add other server-wide configs here
+				};
+				
+				#endif
+				2. Router.hpp
+				cpp
+				Copy code
+				#ifndef ROUTER_HPP
+				#define ROUTER_HPP
+				
+				#include "Request.hpp"
+				#include "Config.hpp"
+				#include <vector>
+				#include <string>
+				#include <utility> // for std::pair
+				
+				class Router {
+				public:
+				    typedef std::pair<const ServerConfig*, const LocationConfig*> RouteResult;
+				
+				    Router(const std::vector<ServerConfig>& servers);
+				
+				    // Returns pair of pointers to matched ServerConfig and LocationConfig, or nullptr if no match
+				    RouteResult route(const Request& request, const std::string& ip, int port) const;
+				
+				private:
+				    const ServerConfig* matchServer(const Request& request, const std::string& ip, int port) const;
+				    const LocationConfig* matchLocation(const ServerConfig& server, const std::string& uri) const;
+				    bool methodAllowed(const LocationConfig& location, const std::string& method) const;
+				
+				    std::vector<ServerConfig> servers;
+				};
+				
+				#endif
+				3. Router.cpp
+				cpp
+				Copy code
+				#include "Router.hpp"
+				#include <algorithm>
+				
+				Router::Router(const std::vector<ServerConfig>& servers)
+				    : servers(servers)
+				{}
+				
+				Router::RouteResult Router::route(const Request& request, const std::string& ip, int port) const {
+				    const ServerConfig* server = matchServer(request, ip, port);
+				    if (!server)
+				        return std::make_pair(nullptr, nullptr);
+				
+				    const LocationConfig* location = matchLocation(*server, request.uri);
+				    if (!location)
+				        return std::make_pair(server, nullptr);
+				
+				    if (!methodAllowed(*location, request.method))
+				        return std::make_pair(server, nullptr); // or handle method not allowed specially
+				
+				    return std::make_pair(server, location);
+				}
+				
+				const ServerConfig* Router::matchServer(const Request& request, const std::string& ip, int port) const {
+				    // 1) Match IP + port
+				    for (size_t i = 0; i < servers.size(); ++i) {
+				        if (servers[i].ip == ip && servers[i].port == port) {
+				            // 2) Match Host header with server_names if exists
+				            if (request.headers.count("Host")) {
+				                std::string host = request.headers.at("Host");
+				                for (size_t j = 0; j < servers[i].server_names.size(); ++j) {
+				                    if (servers[i].server_names[j] == host)
+				                        return &servers[i];
+				                }
+				                // If no server_name matches, still fallback to this server
+				                return &servers[i];
+				            }
+				            return &servers[i];
+				        }
+				    }
+				    return nullptr;
+				}
+				
+				const LocationConfig* Router::matchLocation(const ServerConfig& server, const std::string& uri) const {
+				    // Longest prefix match
+				    const LocationConfig* bestMatch = nullptr;
+				    size_t longestMatchLen = 0;
+				
+				    for (size_t i = 0; i < server.locations.size(); ++i) {
+				        const LocationConfig& loc = server.locations[i];
+				        if (uri.compare(0, loc.path.size(), loc.path) == 0) { // prefix match
+				            if (loc.path.size() > longestMatchLen) {
+				                longestMatchLen = loc.path.size();
+				                bestMatch = &loc;
+				            }
+				        }
+				    }
+				
+				    return bestMatch;
+				}
+				
+				bool Router::methodAllowed(const LocationConfig& location, const std::string& method) const {
+				    return location.allowedMethods.count(method) > 0;
+				}
+				
+			5. ResponseBuilder:
+				-Checks if static or CGI 
+				-Uses: (FileHandler, CGIHandler, ErrorPageGenerator)
+				-Builds full HTTP response 
+				RESPONSIBILITY: Builds an HTTP response based on the request and routing info 
+				DECIDES: 
+					-If it is static file: Use FileHandler 
+					-If it is CGI script: Use CGIHandler 
+					-Error or not found: Use ErrorPageGenerator
+				ASSEMBLES: returns a Response structure containing: 
+					-std::string statusLine;
+					-std::map<std::string, std::string> headers;
+					-std::string body;
+
+				1. Define the Response struct
+				cpp
+				Copy code
+				#ifndef RESPONSE_HPP
+				#define RESPONSE_HPP
+
+				#include <string>
+				#include <map>
+
+				struct Response {
+				    std::string statusLine;               // e.g. "HTTP/1.1 200 OK"
+				    std::map<std::string, std::string> headers;
+				    std::string body;
+
+				    std::string toString() const {
+				        std::string res = statusLine + "\r\n";
+				        for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+				            res += it->first + ": " + it->second + "\r\n";
+				        }
+				        res += "\r\n";
+				        res += body;
+				        return res;
+				    }
+				};
+
+				#endif
+				2. ResponseBuilder.hpp
+				cpp
+				Copy code
+				#ifndef RESPONSEBUILDER_HPP
+				#define RESPONSEBUILDER_HPP
+
+				#include "Request.hpp"
+				#include "Response.hpp"
+				#include "Config.hpp"
+
+				class FileHandler;
+				class CGIHandler;
+				class ErrorPageGenerator;
+
+				class ResponseBuilder {
+				public:
+				    ResponseBuilder();
+
+				    Response buildResponse(const Request& request,
+				                           const ServerConfig& serverConfig,
+				                           const LocationConfig& locationConfig);
+
+				private:
+				    FileHandler* fileHandler;
+				    CGIHandler* cgiHandler;
+				    ErrorPageGenerator* errorPageGen;
+
+				    bool isCGIRequest(const std::string& uri);
+				};
+
+				#endif
+				3. ResponseBuilder.cpp
+				cpp
+				Copy code
+				#include "ResponseBuilder.hpp"
+				#include "FileHandler.hpp"
+				#include "CGIHandler.hpp"
+				#include "ErrorPageGenerator.hpp"
+				#include <iostream>
+
+				ResponseBuilder::ResponseBuilder() {
+				    fileHandler = new FileHandler();
+				    cgiHandler = new CGIHandler();
+				    errorPageGen = new ErrorPageGenerator();
+				}
+
+				bool ResponseBuilder::isCGIRequest(const std::string& uri) {
+				    // Simple heuristic: check if URI ends with ".cgi" or other extension you configure
+				    const std::string cgiExt = ".cgi";
+				    if (uri.size() >= cgiExt.size() &&
+				        uri.compare(uri.size() - cgiExt.size(), cgiExt.size(), cgiExt) == 0) {
+				        return true;
+				    }
+				    return false;
+				}
+
+				Response ResponseBuilder::buildResponse(const Request& request,
+				                                       const ServerConfig& serverConfig,
+				                                       const LocationConfig& locationConfig) {
+				    Response response;
+
+				    // Check method allowed (already done in Router, but double-check)
+				    if (locationConfig.allowedMethods.find(request.method) == locationConfig.allowedMethods.end()) {
+				        return errorPageGen->generateErrorPage(405, "Method Not Allowed");
+				    }
+
+				    // Compose the file system path
+				    std::string filepath = locationConfig.root + request.uri;
+
+				    if (isCGIRequest(request.uri)) {
+				        // Run CGI
+				        bool success;
+				        response = cgiHandler->handleCGI(request, filepath, success);
+				        if (!success) {
+				            return errorPageGen->generateErrorPage(500, "Internal Server Error");
+				        }
+				    } else {
+				        // Serve static file
+				        bool success;
+				        response = fileHandler->serveFile(filepath, success);
+				        if (!success) {
+				            return errorPageGen->generateErrorPage(404, "Not Found");
+				        }
+				    }
+
+				    return response;
+				}
+
+			6. CGIHandler: 
+				-Builds environment, forks, execs CGI script, reads output, returns body and headers 
+				RESPONSIBILITY: Executes CGI scripts and collects output 
+				STEPS: 
+					1. Fork a child process 
+					2. Setup CGI environment (REQUEST_METHOD, SCRIPT_NAME, etc.)
+					3. Setup pipes (stdin for request body, stdout for CGI output)
+					4. execve() the CGI binary
+					5. Read CGI output, split headers + body 
+				OUTPUT: Raw CGI response -> parsed into Response 
+
+				CGIHandler.hpp
+				cpp
+				Copy code
+				#ifndef CGIHANDLER_HPP
+				#define CGIHANDLER_HPP
+
+				#include <string>
+				#include "Request.hpp"
+				#include "Response.hpp"
+
+				class CGIHandler {
+				public:
+				    CGIHandler();
+				    ~CGIHandler();
+
+				    // Handles the CGI execution:
+				    // 'filepath' is the script to execute,
+				    // 'success' is set true if execution was successful.
+				    Response handleCGI(const Request& request, const std::string& filepath, bool& success);
+
+				private:
+				    // Helpers:
+				    void setupEnvironment(const Request& request, const std::string& scriptPath);
+				    Response parseCGIResponse(const std::string& rawOutput);
+
+				    // Store environment variables for execve
+				    char** envp;
+				};
+
+				#endif
+				CGIHandler.cpp
+				cpp
+				Copy code
+				#include "CGIHandler.hpp"
+				#include <unistd.h>
+				#include <sys/wait.h>
+				#include <fcntl.h>
+				#include <cstring>
+				#include <cstdlib>
+				#include <vector>
+				#include <iostream>
+				#include <sstream>
+
+				CGIHandler::CGIHandler() : envp(NULL) {}
+
+				CGIHandler::~CGIHandler() {
+				    // Free envp if allocated - omitted here for simplicity
+				}
+
+				void CGIHandler::setupEnvironment(const Request& request, const std::string& scriptPath) {
+				    // Example of environment variables to set:
+				    // This is a minimal subset, add more as needed.
+
+				    std::vector<std::string> env;
+
+				    env.push_back("REQUEST_METHOD=" + request.method);
+				    env.push_back("SCRIPT_NAME=" + scriptPath);
+
+				    // Parse query string from URI if present
+				    std::string queryString;
+				    size_t qpos = request.uri.find('?');
+				    if (qpos != std::string::npos) {
+				        queryString = request.uri.substr(qpos + 1);
+				        env.push_back("QUERY_STRING=" + queryString);
+				    } else {
+				        env.push_back("QUERY_STRING=");
+				    }
+
+				    env.push_back("CONTENT_LENGTH=" + std::to_string(request.body.size()));
+				    env.push_back("CONTENT_TYPE=" + (request.headers.count("Content-Type") ? request.headers.at("Content-Type") : ""));
+				    env.push_back("GATEWAY_INTERFACE=CGI/1.1");
+				    env.push_back("SERVER_PROTOCOL=" + request.httpVersion);
+				    env.push_back("REMOTE_ADDR=127.0.0.1");  // For now, hardcoded, ideally from client info
+
+				    // Convert vector<string> to char*[]
+				    envp = new char*[env.size() + 1];
+				    for (size_t i = 0; i < env.size(); ++i) {
+				        envp[i] = strdup(env[i].c_str());
+				    }
+				    envp[env.size()] = NULL;
+				}
+
+				Response CGIHandler::parseCGIResponse(const std::string& rawOutput) {
+				    Response response;
+
+				    // CGI response headers and body are separated by "\r\n\r\n"
+				    size_t pos = rawOutput.find("\r\n\r\n");
+				    if (pos == std::string::npos) {
+				        // Malformed CGI output: treat all as body with 200 OK
+				        response.statusLine = "HTTP/1.1 200 OK";
+				        response.body = rawOutput;
+				        response.headers["Content-Length"] = std::to_string(rawOutput.size());
+				        return response;
+				    }
+
+				    std::string headersStr = rawOutput.substr(0, pos);
+				    response.body = rawOutput.substr(pos + 4);
+
+				    // Parse headers line-by-line
+				    std::istringstream stream(headersStr);
+				    std::string line;
+				    bool statusSet = false;
+
+				    while (std::getline(stream, line)) {
+				        if (line.back() == '\r') line.pop_back(); // Remove trailing \r
+
+				        if (line.find("Status:") == 0) {
+				            // Example: "Status: 200 OK"
+				            std::string statusCode = line.substr(7);
+				            while (!statusCode.empty() && statusCode[0] == ' ') statusCode.erase(0, 1);
+				            response.statusLine = "HTTP/1.1 " + statusCode;
+				            statusSet = true;
+				        } else {
+				            // Regular header: "Header-Name: value"
+				            size_t colon = line.find(':');
+				            if (colon != std::string::npos) {
+				                std::string key = line.substr(0, colon);
+				                std::string value = line.substr(colon + 1);
+				                while (!value.empty() && value[0] == ' ') value.erase(0, 1);
+				                response.headers[key] = value;
+				            }
+				        }
+				    }
+
+				    if (!statusSet) {
+				        response.statusLine = "HTTP/1.1 200 OK";
+				    }
+
+				    response.headers["Content-Length"] = std::to_string(response.body.size());
+				    return response;
+				}
+
+				Response CGIHandler::handleCGI(const Request& request, const std::string& filepath, bool& success) {
+				    success = false;
+
+				    // Setup environment variables
+				    setupEnvironment(request, filepath);
+
+				    int inputPipe[2];  // Parent writes request body to child stdin
+				    int outputPipe[2]; // Child writes CGI output to parent
+
+				    if (pipe(inputPipe) < 0 || pipe(outputPipe) < 0) {
+				        perror("pipe");
+				        return Response();
+				    }
+
+				    pid_t pid = fork();
+				    if (pid < 0) {
+				        perror("fork");
+				        return Response();
+				    }
+
+				    if (pid == 0) {
+				        // Child process
+
+				        // Redirect stdin to read end of inputPipe
+				        close(inputPipe[1]);
+				        dup2(inputPipe[0], STDIN_FILENO);
+				        close(inputPipe[0]);
+
+				        // Redirect stdout to write end of outputPipe
+				        close(outputPipe[0]);
+				        dup2(outputPipe[1], STDOUT_FILENO);
+				        close(outputPipe[1]);
+
+				        // Execute CGI script
+				        char* args[] = {const_cast<char*>(filepath.c_str()), NULL};
+				        execve(filepath.c_str(), args, envp);
+
+				        // If execve fails
+				        perror("execve");
+				        _exit(1);
+				    }
+
+				    // Parent process
+
+				    // Close child's ends
+				    close(inputPipe[0]);
+				    close(outputPipe[1]);
+
+				    // Write request body to CGI stdin
+				    ssize_t totalWritten = 0;
+				    ssize_t bodySize = (ssize_t)request.body.size();
+				    const char* bodyData = request.body.c_str();
+
+				    while (totalWritten < bodySize) {
+				        ssize_t written = write(inputPipe[1], bodyData + totalWritten, bodySize - totalWritten);
+				        if (written <= 0) break;
+				        totalWritten += written;
+				    }
+				    close(inputPipe[1]); // Signal EOF
+
+				    // Read CGI output
+				    std::string cgiOutput;
+				    char buffer[1024];
+				    ssize_t bytesRead;
+				    while ((bytesRead = read(outputPipe[0], buffer, sizeof(buffer))) > 0) {
+				        cgiOutput.append(buffer, bytesRead);
+				    }
+				    close(outputPipe[0]);
+
+				    // Wait for child process to finish
+				    int status;
+				    waitpid(pid, &status, 0);
+
+				    // Clean up envp
+				    if (envp) {
+				        for (char** e = envp; *e != NULL; ++e) {
+				            free(*e);
+				        }
+				        delete[] envp;
+				        envp = NULL;
+				    }
+
+				    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+				        success = true;
+				        return parseCGIResponse(cgiOutput);
+				    } else {
+				        success = false;
+				        return Response();
+				    }
+				}
+
+		-When someone connects : 
+			1. Server accepts the connection 
+			2. Adds client fd to poll()
+			3. Buffers the read data 
+			4. Parses it step-by-step 
+			5. Matches it to the right config 
+			6. Generates a response (static or CGI)
+			7. Writes it back
+
+	-Event-driven I/O concepts using poll() or select()
+		1. Event-Driven I/O: 	When a program does input/output like reading form a network socket or file, it might block. (The program waits idle until the operation completes)
+								If you have many clients, blocking on one client means you cannot handle others efficiently
+									-In an event-driven I/O you don't wait on one socket. When an event happens, you react only to the ready sockets 
+		2. poll() and select():	They let you wait for events on multiple file descriptors without blocking on any single one.
+								You give poll() a list of sockets 
+								It returns only when at least one socket is ready for reading, writing or has an error 
+								You can react to that socket - read or write - while other sockets remain untouched for now.
+								Your server can handle many clients simultaneously without using a thread per client 
+									-poll() waits for an event and when a client sends data, you react. (Take the order, serve, etc.)
+									-revents & POLLIN -> new connection: accept(). client sent something: recv()
+									-revents & POLLOUT -> we are ready to write to this client 
+									-revents & (POLLHUP | POLLERR) -> connection closed or errored: cleanup
+		3. Non-Blocking meaning:	Means when you try to read or write and no data is ready, the call returns inmediately instead of waiting 
+									You combine: poll() to wait for readiness events and non-blocking socket I/O to attempt read/write without waiting
+										-Non-blocking sockets + poll() -> when there is nothing to read - try later 
+										-recv() == -1 -> nothing to  read at the moment
+										-recv() == 0 -> client closed connection 
+										-recv() > 0 -> received data 
+		4. Reactor pattern:		Is a design pattern used by servers like NGINX.
+								1. Register all sockets with an event notification system 
+									-server sockets with accept() and client sockets with recv()/send()
+									-register them with poll() by filling a std::vector<pollfd>
+	
+									pollfd pfd;
+									pfd.fd = socket_fd;
+									pfd.events = POLLIN; //waiting for something to read 
+									fds.push_back(pfd);
+
+								2. Wait for an event on any socket (using poll())
+									-call poll() and wait 
+
+									int n = poll(fds.data(), fds.size(), timeout);
+
+									-Now the server sits until :
+										-New client is connecting
+										-Connected client is sending a request 
+										-Client is ready to receive a response 
+										-Socket is closed 
+
+								3. When an event happens, react. 
+									-If it is a server socket, accept() a new client connection 
+									-If it is a client socket, read or write data 
+
+									for (size_t i = 0; i < fds.size(); ++i) {
+										int fd = fds[i].fd;
+										if (fds[i].revents & POLLIN) {
+											if (isListeningSocket(fd)) {
+												//Accept new client 
+												int client_fd = accept(fd, ...);
+												makeNonBlocking(client_fd);
+												registerInPoll(client_fd);
+											}
+											else {
+												//Read data from client 
+												int n = recv(fd, buffer, ...);
+												handleHttpRequest(fd, buffer);
+											}
+										}
+									}
+
+								4. Go back to waiting for events 
+									-After handling all ready sockets, call again poll() and repeat (main loop)
+								
+								In webserv: 
+									-Reactor pattern -> while (true) {poll(); react();}
+									-Event notification -> poll()
+									-React to connection -> accept()
+									-React to request -> recv(), parse HTTP 
+									-React to response -> send()
+									-Add/remove fds -> std::vector<pollfd> management
+								
+		5. Why use reactor and non-blocking 
+								-Avoids wasting CPU time blocking on I/O_NONBLOCK
+									-poll() + non-blocking sockets to avoid getting stuck 
+								-Handles thousands of clients efficiently with a single thread
+									-reacts to each socket when needed without the need of threats or processes  
+								-Gives you fine-grained control of when to read/write 
+									-Can choose when to read or write. Can build state machines and can timeout inactive connections 
+								-Scales better than a thread-per-client or process-per-client model 
+									-Minimal resources, maximum scalability
+		
+
+	-Reactor pattern basics: an event loop waits for socket events and dispatches handlers for each event
+		-Goal: Handle I/O operations with one thread and non-blocking I/O 
+		1. Register sockets in poll() list 
+		2. Poll for events
+		3. When poll() returns, tells you which sockets are ready 
+		4. For each ready socket -> accept() for server socket, read()/write() for client socket 
+		5. Go back to polling
+
+SKETCH MAIN MODULES/CLASSES
+	-ServerManager
+	{
+
+		Sets up server sockets, enters poll() loop, manages file descriptors 
+		Ensure it initializes server sockets correctly and runs the event loop. Tests: 
+			-Start with 1 server, check port binds correctly 
+			-Start with multiple servers (different ports/IPs)
+			-Handle bind failure (port already in use)
+			-Run loop with poll() and timeout (without clients)
+			-Accept a real connection with telnet or curl
+		Tools: 
+			-Add logs on bind/listen 
+			-Use lsof -i :PORT to verify open sockets 
+			-Connect via telnet localhost 8080
+
+		RESPONSIBILITIES:
+			1. Loading configuration 
+			2. Setting up server (listening) sockets 
+			3. Running the poll() event loop 
+			4. Accepting new connections 
+			5. Reading from/writing to clients 
+			6. Cleaning up closed or timed-out connections 
+
+		STORES: 
+			1. std::vector<ServerConfig> servers; <- Parsed from config file. Declares a list of ServerConfig: One for eacch server block  
+			2. std::map<int, ServerConfig> listeningSockets; <- server_fd -> config. Maps each socket FD to its ServerConfig. To identify which server config a socket belongs to 
+			3. std::map<int, Connection*> clients; <- client_fd -> Connection*. Maps each client socket FD to its Connection*. Tracks active client connection 
+			4. std::vector<pollfd> pollfds; <- FDs to monitor with poll(). Stores the list of pollfd structs that poll() monitors for events
+
+		FUNCTIONS: 
+			1. loadConfig(const std::string &filename)
+				-Reads and parses the config file (webserv.conf)
+					-Config file contains all the server configuration data.
+					-Parse it to extract all the blocks and settings
+				-Fills servers vector with ServerConfig classes.
+					-To use them later 
+
+				EXPLANATION: 
+					1. Reads line by line 
+					2. Detects server {...} blocks
+					3. Extract values for the settings 
+					4. Within each server, find location {...} blocks and fill their info 
+					5. Creates a ServerConfig instance with all parsed values 
+					6. Adds this instance to the servers vector 
+
+			2. initSockets()
+				-Open and prepare all server sockets that will listen to incoming client connections, based on config data.
+				-For each unique (host, port):
+					-Creates socket (socket())
+					-Set socket options (SO_REUSEADDR)
+					-Bind to host/port (bind())
+					-Start listening (listen())
+					-Store in listeningSockets[fd]
+					-Add to pollfds with POLLIN for accepts 
+
+				EXPLANATION: 
+					1. Identify unique (host, port) pairs
+						-Some servers might share the same IP and port 
+						-One socket per unique (host, port)
+						-Collect all unique pairs before creating sockets 
+					2. For each unique pair:
+						-Create socket -> int sockfd = socket(AF_INET, SOCK_STREAM, 0); <- returns a fd for the socket 
+						-Set socket options -> int opt 1; setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); <- lets you reuse addres after server stops
+						-Bind the socket -> prepare sockaddr_in and then bind it.
+							sockaddr_in addr;
+							memset(&addr, 0, sizeof(addr));
+							addr.sin_family = AF_INET;
+							addr.sin_port = htons(port);
+							inet_pton(AF_INET, host.c_str(), &addr.sin_addr);
+							bind(sockfd, (sockaddr*)&addr, sizeof(addr));
+						-Listen -> listen(sockfd, SOMAXCONN); <- listen for incoming connections 
+					3. Store the socket FD and the related config into a map
+						-listeningSockets[sockfd] = ServerConfig;
+						-Add pollfd struct to pollfds vector with the event flag POLLIN (to monitor it for readable events)
+
+			3. run()
+				-Runs the main loop of poll()
+				
+				EXPLANATION 
+					1. While (true) {...}
+					2. poll() blocks waiting for events on sockets listed in pollfds. 
+						-int ready = poll(pollfds.data(), pollfds.size(), timeout);
+						-Returns the number of ready sockets, or 0 on timeout, or -1 on error 
+					3. for (size_t i = 0; i < pollfds.size(); ++i) { int fd = pollfds[i].fd;
+						-Loop through all monitored FDs after poll() returns 
+						-fd is the actual socket descriptor 
+					4. if (pollfds[i].revents & POLLIN) {
+						-Check if this socket has data ready to read 
+					5. if (listeningSockets.count(fd)) {acceptClient(fd);} else {handleClient(fd)}
+						-If it is a server socket (found in listeningSockets map) -> New client trying to connect. acceptClient(fd) to accept connection and add new client socket to pollfds 
+						-If it is a client socket -> Call handleClient(fd) to read data, parse requests, respond, etc.
+					6. }//Cleanup dead clients, timeouts, etc. } 
+						-After handling all ready sockets, clean up any closed or timed-out client connections. Then repeat, continue to wait for new events. 
+
+			4. acceptClient(int server_fd)
+				-Accepts the new client with accept, uses fcntl, creates new Connection and add to pollfds with POLLIN
+
+				EXPLANATION
+					1. int client_fd = accept(server_fd, nullptr, nullptr);
+						-Accept incoming connection and returns a new socket descriptor for client 
+					2. fcntl(client_fd, F_SETFL, O_NONBLOCK);
+						-Set the new socket to non-blocking mode. (Calls to read/write won't block the server)
+					3. clients[client_fd] = new Connection(client_fd);
+						-Creates a new Connection object to track client state. Store in clients map (key is client socket FD)
+					4. pollfds.push_back({client_fd, POLLIN, 0});
+						-Add client socket to pollfds vector and marks it for reading (POLLIN)
+
+			5. handleClient(int client_fd)
+				-Reads from the socket, Parses request, Builds response, Writes to socket, If finished: close or set for keep-alive 
+
+				EXPLANATION 
+					1. Reads incoming data from client socket. If none data available, returns immediately
+					2. Feeds data into a requestParser (handles partial reads) (accumulates bytes and detects when the full HTTP request is received)
+					3. Once a full request is parsed, build an HTTP response 
+					4. Sends the response back to the client (writing might also be partial)
+					5. If connection is done (no keep-alive): closes client socket and cleans up 
+					6. Otherwise, prepares for the next request 
+
+			6. closeClient(int client_fd)
+				-Remove from pollfds 
+				-Close fd 
+				-Delete Connection* from heap 
+				-Erase from clients 
+
+				EXPLANATION 
+					1. Remove from pollfds vector
+					2. Close socket fd 
+					3. Delete Connection object from heap 
+					4. Remove from clients map
+		
+		EVENT FLOW SUMMARY:
+			1. Server starts: loadConfig() -> initSockets() -> run()
+			2. Client connects: poll() detects POLLIN on server socket 
+			3. acceptClient(): accepts new fd -> adds to pollfds 
+			4. Client sends HTTP request: reads data, parses request, builds response 
+			5. handleClient(): Reads data, parses request, builds response 
+			6. Response sent: writes to client fd -> maybe closes or keeps alive 
+			7. Client disconnects: recv() returns 0 -> call closeClient()
+			
+	}
+
+	-ConfigParser 
+	{
+		Parse NGINX-style config files into structured data 
+		Ensure the parser reads, validates and builds ServerConfig and LocationConfig objects correctly. Tests: 
+			-Parse a minimal valid config with one server and one location 
+			-Parse multiple servers on different ports 
+			-Test inheritance of root, index and error_page 
+			-Reject malformed config 
+			-Handle duplicate ports/IPs (warn or error)
+			-Check correct parsing of methods, autoindex, cgi_extension
+		Tools: 
+			-Write unit tests with prebuilt config strings or files 
+			-Print parsed config as JSON-style output to verify
+
+		RESPONSIBILITIES:
+			1. Read and tokenize the NGINX-style config file 
+			2. Parse the tokens into classes of configuration blocks ServerConfig, LocationConfig
+			3. Validate the parsed data 
+			4. Support nested blocks and inheritance of config values 
+			5. Expose the parsed configuration as usable C++ classes for the server 
+
+		STORES:
+			Nothing.
+			(The ServerManager stores the vector containing the ServerConfig classes)
+			(Each of the ServerConfig classes store the vector containing the LocationConfig classes)
+			ServerConfig class stores the server settings
+			LocationConfig class stores the location settings
+
+		FUNCTIONS:
+			1. std::vector<ServerConfig>	parse(const std::string &path);
+				-Reads the entire file contents into a string
+				-Calls tokenize() to split the file into tokens 
+				-Calls parseServers() to create ServerConfig objects 
+
+				EXPLANATION: 
+					1. Read file into a string 
+					2. Tokenize the content and store it in a vector of token strings 
+					3. Parse Servers from tokens and store them in a vector of ServerConfig classes. We will return this value.
+						-In the function Parse Servers we will organize the tokens in servers and parse each block individually
+					4. Return the servers vector to store it in the ServerManager class.
+
+			2. tokenize(const std::string &content, std::vector<std::string> &tokens);
+				-Splits config text into tokens (handle spaces, tabs and newlines)
+				-Separate symbols {, }, ;, and individual tokens 
+				-Produces a vector of tokens ready for parsing 
+
+				EXPLANATION:  
+					1. We scan character by character and collect words, {, } and ; as separate tokens  
+					2. Skip ( ,\n,\t)
+					3. Multiple special chars in a row: treated  separately
+					4. Final token at end of input: pushed if non-empty.
+
+			3. parseServers(const std::vector<std::string> &tokens, size_t &pos, std::vector<ServerConfig> &servers);
+				-Iterates tokens looking for server {...} blocks
+				-Calls parseServerBlock() for each server block 
+
+				EXPLANATION: 
+					1. Input: tokens from tokenize() and a reference to a vector of ServerConfig classes in which servers will be stored
+					2. Loop through tokens.
+					3. When find a "server" followed by "{", call  parseServerBlock(i)
+					4. Inside  parseServerBlock(), you will consume the whole block and return a ServerConfig. 
+					5. Advance the index to after the block 
+
+			4. ServerConfig parseServerBlock(const std::vector<std::string> &tokens, size_t &pos);
+				-Parses server-level directives
+				-Parses nested location {...} blocks using parseLocationBlock()
+
+				EXPLANATION:
+					1. Input: tokens vector, start index.
+					2. Loop through the server 
+					3. Find directives, identify them, store their values, look for possible errors.
+						-If  we find a location block, call parseLocationBlock which will return a LocationConfig instance to push it in the vector of LocationConfig
+					4. Find the next directive.
+					5. Repeat until finish 
+					6. Return a ServerConfig class
+
+			5. LocationConfig parseLocationBlock(const std::vector<std::string> &tokens, size_t &pos);
+				-Parses location-level directives  
+				-Handles multiple allowed methods 
+				-Parses boolean flags
+
+				EXPLANATION: 
+					1. Input: tokens vector, start index.
+					2. Get the location path 
+					3. Loop through the location the same way as the server. (Find directives, store the values, etc.)
+					4. Return a LocationConfig class  
+
+			6. parseDirective(ServerConfig/LocationConfig& server/location, const std::string &direction, const std::vector<std::string> &args)
+				-Extracts directive name and its arguments
+				-Stores them in ServerConfig or LocationConfig
+				-Checks if the values are correct (validates values)
+				-We use it after we find a directive in the function parseServerBlock()
+					-Get directive and the next tokens until ; will be the args.
+
+				EXPLANATION 
+					1. Checks the directive 
+					2. Checks for errors in the arguments of the directive. If it is correct, we store the values in the server/location we passed as an argument 
+
+			7. bool  isDirective/isBlockStart(const std::string &token)
+				-Checks if the token we passed matches the name of a directive/block start
+				-Returns true/false
+
+
+		EVENT FLOW SUMMARY.
+			1. Read file->Tokenize 
+			2. Look for server { ->parse server block 
+			3. Inside server block:
+				-Parse directives 
+				-When location { encountered ->parse location block 
+			4. Location block: parse directives
+			5. After } close server block -> continue to next server block or end 
+
+	}
+
+	-ConnectionHandler
+	{
+		Represents a single client and tracks its read/write state 
+		Correctly manage individual clientt lifecycle: read -> write -> close. Tests:
+			-Handle one connection: accept -> read -> respond -> close 
+			-Test client disconnect mid-request 
+			-Multiple simultaneous connections 
+			-Partial reads (simulate slow clients)
+			-Large body uploads (> 8 KB)
+			-Keep-alive vs close 
+		Tools:
+			-Use curl --keepalive-time, nc, and raw TCP tools 
+			-Log state transitions: READING -> WRITING -> DONE
+
+		RESPONSIBILITIES 
+			1. Tracks the connected client state (reading request, writing response, done)
+			2. Buffers data as needed 
+			3. Handles non-blocking recv() and send()
+			4. Stores parsed request and generated response 
+			5. Tracks last activity (for timeouts)
+
+		WHY WE NEED IT:
+			1. Read and assemble the full HTTP request 
+			2. Handle partial reads 
+			3. Know when the request is done 
+			4. Send the HTTP response (maybe in chunks)
+			5. Know when it is time to close the connection 
+
+		STORES:
+			-HttpRequest request -> Incoming HTTP request from a client. We will later build HttpRequest class
+			-HttpResponse response -> HTTP response you will send back to the client. We will build later HttpResponse class
+
+			-int	fd; -> client socket FD. Identifies the connection between your server and this client. Use it along recv(), send() or poll() to read/write data.
+			-std::string buffer; -> Temporary storage for incoming/outgoing data. 
+				-When reading: accumulate raw bytes from recv()
+				-When writing: use it to store the response before send()
+			-enum State {READING, WRITING, DONE} state; -> Tracks the phase the client connection is in:
+				-READING: Waiting to receive the full request 
+				-WRITING: Request has been parsed and we are sending the response 
+				-DONE: Communication is finished and the socket will be closed soon 
+			-time_t 	lastActivity; -> Timestamp of the last operation. To implement timeouts (to avoid dead connections open)
+			-std::string sendBuffer; -> The buffer we need to send (it may be in chunks)
+			-size_t 	 sendOffset; -> The buffer size of the sendBuffer
+
+		FUNCTIONS
+			1. Constructor -> Stores client fd, initializes state to READING, lastActivity = time(NULL), sendOffset = 0
+			2. Destructor -> close fd
+
+			3. bool readRequest(); -> Called  when poll() says socket is readable. (returns false if disconnected or error)
+				-CALL THIS WHEN POLL() SIGNALS SOCKET IS READY FOR READING 
+				-Uses recv(_fd, tmpBuffer, sizeof(tmpBuffer), 0);
+				-Appends to internal buffer 
+				-Updates lastActivity 
+				-Calls parseRequest() to check if full request is received 
+				-If disconnected or error -> return false
+
+				EXPLANATION:
+					1. Reads data from a client socket into the internal buffer and determines if the complete HTTP request has been received 
+					2. Receive data from socket with recv (reads raw bytes from socket). If no data ready -> return -1
+					3. Check if the bytesRead is <= 0 -> (return false) 
+						-bytesRead == 0 -> connection closed 
+						-bytesRead < 0 ->  error ocurred
+					4. Append the temporary buffer to the buffer variable. (This lets you accumulate the full HTTP request, it may arrive in chunks)
+					5. Update last activity -> lastActivity = std::time(NULL);
+					6. return parseRequest(); -> it will return true if the request is complete 
+						-true: parsing succeeded and you are ready to write the response 
+						-false: stay in READING state until more data arrives
+
+			4. bool parseRequest(); -> This function returns true if the request is complete, else false
+				-It stores the HTTP request in the HttpRequest class and the values of it 
+				-It checks if the headers indicate that there is a body or not 
+
+				EXPLANATION:
+					1. Check for End of Headers: HTTP headers end with "\r\n\r\n". If we do not find this in the buffer, return false 
+					2. Extract the first line of the buffer and get the method, uri and version of the HTTP Request and store them in the class HttpRequest
+					3. Parse each header line 
+						-Loop through each header line until a blank line "\r" <- indicates the end of headers.
+						-Each header has the format-> Key: Value. Split them by : and trim leading spaces.
+						-Store each header in the headers map of the class HttpRequest
+					4. Check if the body is expected and fully received 
+						-If the request has a body, it should send a Content-Length header 
+						-Calculate total expected length: pos + 4 + content-length. If buffer.size() < totalLength -> return false
+					5. Extract the body from the buffer (pos + 4) right after the headers and store it in the HttpRequest class. state = WRITING. return true;
+
+			5. bool isRequestComplete(); true if (state != READING)
+
+			6. bool isReadyToWrite(); true if (state == WRITING)
+
+			7. bool writeResponse(); -> Send the HTTP response data back to the client on the socket fd.
+				-CALL THIS WHEN POLL() SIGNALS THE SOCKET IS READY FOR WRITING AND THE CONNECTION STATE IS WRITING
+				-We use sendOffset as a counter of the bytes we have sent already. Until this number is not the same as sendBuffer, we continue sending
+
+				EXPLANATION:
+					1. Use the function build() from the HttpResponse class to generate a response as a string (sendBuffer).
+					2. Uses send() to write bytes from sendBuffer to the socket fd.
+						-ssize_t sent = send(fd, sendBuffer.c_str() + sendOffset, response_str.size() - sendOffset, 0);
+						-It returns how many bytes were actually sent
+					3. If sent <= 0 -> return false -> to indicate error or closed connection;
+					4. sendOffset = sendOffset + sent -> Now we got the total number of bytes sent at the moment 
+					5. if (sendOffset == sendBuffer.size()) -> The response writing has been completed and now:
+						-state = DONE 
+					4. return true 
+
+			EVENT FLOW SUMMARY
+				1. Server starts and listens 
+				2. Event loop waits: poll()
+				3. New connection event on server socket -> accept(), create a Conection, add client  socket to poll list 
+				4. Client socket ready for reading -> Connection::readRequest()
+				5. Client socket ready for writing -> Connection::writeResponse()
+				6. Connection closed or timed out -> Remove from poll, clean up Conection object, close socket fd
+	
+	}
+
+	-RequestParser
+	{
+		Parses incoming HTTP requests incrementally
+		Parse HTTP requests line by line and handle malformed input gracefully. Tests:
+			-Valid GET/POST/DELETE request 
+			-No headers, some headers, malformed headers 
+			-Long headers (e.g. large User-Agent)
+			-Incomplete request (test state machine)
+			-Chunked transfer-encoding 
+			-Request with and without body 
+		Tools:
+			-Feed test strings via a mock connection 
+			-Validate resulting HttpRequest 
+
+		PURPOSE 
+			-Reads and parses HTTP requests sent by the client. 
+			-It does this incrementally (piece by piece)
+			-Keeps track of what part of the request it's currently parsing and stores all the parsed information inside HttpRequest class.
+
+		STORES:
+			1. enum Phase {REQUEST_LINE, HEADERS, BODY, COMPLETE} phase; <- Defines the stages of HTTP request parsing.
+				-REQUEST_LINE: Parsing first line.
+				-HEADERS: Parsing headers 
+				-BODY: Reading the body (if the headers say it exists)
+				-COMPLETE: Reading has finished. Now it's ready to process.
+
+			2. HttpRequest request; <- To store all the parsed data from the request.
+
+		FUNCTIONS:
+			1. void parseLine(const std::string &line);
+				-Feeds one line at a time into the parser.
+				-Depending on the current phase it will:
+					1. Parse request line.
+					2. Parse a header.
+					3. Detect end of headers 
+					4. Start handling the body if needed.
+				-Called every time you receive a new line from client socket.
+
+				EXPLANATION:
+					1. REQUEST_LINE phase. Splits the info into method, URI and version. 
+						-It also checks the info. If it is valid -> Stores the data and phase = HEADERS.
+					2. HEADERS phase. Splits each line into key/value pairs and add them to request.headers. 
+						-If it encounters an empty line, it means end of headers. 
+						-If a body is expected -> Content-Length > 0 -> phase = BODY. Else phase = COMPLETE 
+					3. BODY phase. It appends the line to the body buffer.
+						-Once you have collected a data with bytes = Content-Length, phase = COMPLETE 
+					4. COMPLETE phase. Nothing more is parsed and future parseLine() should do nothing.
+
+			2. bool isComplete() const; <- if phase == complete, return true.
+				-Tells whether the full request has been received and parsed.
+
+			3. HttpRequest getRequest() const;
+				-Gives access to the parsed request once it's fully received.
+				-Returns the internal HttpRequest object.
+				-Only call this after isComplete() returns true.
+				-Useful to access all the parsed data.
+
+		EVENT-FLOW:
+			1. Get lines individually until you have read the entire file.
+			2. Call parseLine() on every single line.
+			3. Check if isComplete() == true. If that is the case get the HttpRequest instance with the stored data.
+		
+	}
+
+	-HttpRequest/HttpResponse 
+	{
+		Store structured request/response data 
+
+		HttpRequest:
+
+		STORES:
+			-std::string method;
+			-std::string uri;
+			-std::string version;
+			-std::map<std::string, std::string> headers;
+			-std::string body;
+
+		HttpResponse:
+
+		STORES:
+			-int								status_code;
+			-std::string						status_text;
+			-std::map<std::string, std::string> headers;
+			-std::string 						body;
+
+		FUNCTIONS:
+			-std::string	build(); -> constructs the full HTTP response string 
+
+			EXPLANATION:
+				1. Status line -> writes HTTP/1.1-status code-status text\r\n 
+				2. Iterates over all headers and writes each header as:
+					Header-Name: Header-Value\r\n 
+				3. Adds the Content-Length header automatically, calculating the length of the body string 
+				4. Writes "\r\n" to mark the end of headers 
+				5. Appends the response body string 
+
+	}
+
+	-ResponseBuilder
+	{
+		Given a request, build the correct HTTP response 
+		Build the correct response (status, header, body) for a given request. Tests: 
+			-Serve static HTML file (200 OK)
+			-File not found -> 404 
+			-Forbidden method -> 405 
+			-Autoindex on/off 
+			-Correct MIME types (CSS, JPG, JS)
+			-HEAD request support (headers only)
+		Tools:
+			-Compare full HTTP response string to expected value 
+			-Use curl -v to inspect headers
+
+		PURPOSE:
+			-Given an HttpRequest and the ServerConfig, the class creates a HTTP response to send it back.
+
+		STORES: 
+			-Nothing.
+
+		FUNCTIONS:
+			1. HttpResponse	generateResponse(const HttpRequest &request, const ServerConfig &server);
+				-Given a request and server, builds a response.
+				-Matches URI to a location block in the config.
+				-Check if method is allowed (GET, POST, DELETE)
+				-Serves a static file from disk
+				-Can trigger a CGI handler 
+				-Sets appropiate headers.
+				-Handles errors gracefully.
+				-Returns an HttpResponse object ready to be sent to the client.
+
+				EXPLANATION:
+					1. Checks which location block in the server config matches request.uri (create another function)
+					2. Check if method is allowed. If not allowed -> return 405
+					3. Determine resource path, which is the location root + the request URI.
+					4. Serve static file for a GET request.
+						-Check if the file exists and is readable.
+						-Reads the file content and builds response body.
+						-Set headers like -> Content-Type, Content-Length, Connection
+					5. Handle POST/CGI 
+						-If cgi_extension inside location matches the URI, call CGIHandler to run the script.
+						-Collect output and build a response from it.
+					6. Error Handling 
+						-If file not found -> 404 Not Found 
+						-If internal error -> 500 Internal Server Error 
+						-If method not allowed -> 405 Method Not Allowed 
+
+			2. std::string	getFileContent(const std::string &path);
+				-Reads the content of a file from our disk and returns the contents as a std::string.
+				-This is for GET requests when serving static files.
+
+				EXPLANATION:
+					1. when handling a GET request, we have to map the root + URI to get resource path 
+					2. Opens the file at the given path 
+					3. Reads the entire fille and stores it in a string buffer 
+					4. Returns the content 
+
+			3. std::string	getMimeType(const std::string &ext);
+				-Given a file extension, it returns the correct MIME type for the Content-Type header in response.
+
+				EXPLANATION:
+					1. it takes a string which ends with .html or .js (for example)
+					2. matches it to a known list of MIME string and returns it like text/html or application/javascript
+					3. If unknown, returns a default MIME type (application/octet-stream)
+
+	}
+
+	-CGIHandler
+	{
+		Launch CGI processes and handle input/output 
+		Run CGI script and return its output as a valid HTTP response. Tests:
+			-Simple CGI returning static HTML 
+			-CGI reading stdin (POST data)
+			-Environment variables: CONTENT_LENGTH, QUERY_STRING, etc 
+			-Timeout CGI script (simulate hang)
+			-Script not found -> 500
+		Tools: 
+			-Use test scripts (hello.py, echo.php)
+			-Check stdout of subprocess is captured and returned 
+		PURPOSE:
+			-Handes execution of CGI scripts, when a request is routed to a location with a cgi_extension 
+			-It takes care of setting up environment variables, forking the process and capturing the output 
+
+		STORES:
+			-std::map<std::string, std::string> env; <- To store environment variables required by CGI 
+			-std::string 						cgiOutput; <- Where the cgi output is stored for later parsing it 
+
+		FUNCTIONS:
+			-HttpResponse	executeScript(const HttpRequest &request, const LocationConfig &location).
+				-Runs a CGI script based on the incoming request and returns a valid HttpResponse built from the script's output 
+				-Good because: 
+					-Encapsulates all CGI logic in one place 
+					-Makes testing easier
+					-Keeps ResponseBuilder and Connection clean and focused 
+					-Lets you extend CGI features later  
+
+				EXPLANATION:
+					1. Prepare environment variables
+						-Calls an internal method like setupEnvironment(const HttpRequest &request, const LocationConfig &location)
+						-CGI scripts rely on these to understand the request 
+					2. Fork and execute the script
+						-Calls forkAndExecute(). Forks the process:
+							-In the child process -> Redirects stdin to receive a POST body, redirects stdout to a pipe, calls execve on the CGI using env and args.
+							-In the parent process -> Reads the output of the script from the pipe into cgiOutput 
+					3. Parse the CGI output into a response 
+						-Splits cgiOutput into headers and body. If script did not return proper headers, you should return a 500 Internal Server Error 
+					4. Return the response 
+						-The HttpResponse object is returned to the caller ready to be turned into a string and sent to the client 
+			
+			-void setupEnvironment(const HttpRequest &request, const LocationConfig &location);
+				-Prepares CGI environment variables so the CGI script knows: what request is responding to, how to read input, what file to run.
+				-These are passed to execve() when launching the CGI process 
+				-It fills a std::vector<std::string> with these variables:
+					REQUEST_METHOD, SCRIPT_NAME, SCRIPT_FILENAME, QUERY_STRING, CONTENT_LENGTH, CONTENT_TYPE, SERVER_PROTOCOL, HTTP_HOST, HTTP_USER_AGENT
+				-Later pass the string vector to a char* vector
+
+			-void forkAndExecute(const std::string& scriptPath);
+				-Runs the CGI script by forking the current process, redirecting stdin/stdout to communicate with the script and executing the script using execve()
+				-Fork is used to avoid crashing the server, read input from the client (POST data) and to write output to stdout, which the server reads and turns into a response 
+
+				EXPLANATION:
+					1.	Create input and output pipes (for writing request body to CGI stdin and for reading CGI stdout)
+					CHILD PROCESS
+					2.	Fork and redirect STDIN to the input pipe.
+					3.	Redirect STDOUT to output pipe.
+					4. Convert args/environment to char**
+					5. execve 
+					PARENT PROCESS
+					6. write request body to child (if needed)
+					7. read output from CGI script 
+					8. store output to parse later 
+					also waitpid(pid, NULL, 0) to waitt for CGI to finish
+		
+		IN THE SERVER FLOW:
+			-When ResponseBuilder sees that a request should be handled by CGI 
+			-Then HttpResponse::build() turns that into a raw response string ready for send()
+		
+
+	}
+	-Router 
+	{
+		Matches incoming request to the best ServerConfig + LocationConfig
+		Match HttpRequest to the best ServerConfig and LocationConfig. Tests: 
+			-Match correct server by Host and listen 
+			-Location /, /images, /images/ all tested
+			-Longest prefix match wins 
+			-Handle missing Host header 
+			-Handle overlapping locations 
+		Tools:
+			-Build test servers in code and call .route() directly
+			-Print matched server+location for manual inspection
+		PURPOSE:
+			-Responsible for matching an incoming HTTP request to the most appropiate server and location block, based on NGINX like rules 
+			-The correct server block based on IP, port and Host header 
+			-The best location block based on URI prefix match 
+
+		STORES:
+			-Nothing 
+
+		FUNCTIONS:
+			-std::pair<ServerConfig, LocationConfig>	route(const HttpRequest &request, const std::vector<ServerConfig> &servers);
+				-Input -> HttpRequest &request -> contains the request URI, Host header, etc.
+				-Input -> std::vector<ServerConfig> &servers -> all available server blocks (from the config)
+				-Output -> The best matching ServerConfig and LocationConfig 
+			
+			EXPLANATION:
+				1. Choose the right ServerConfig block.
+					-First match by IP and port 
+					-Then match Host: header to server_name 
+					-If no server_name matches -> use the first server with matching IP:port 
+				2. Choose the best LocationConfig block 
+					-Find the location with the longest prefix that matches the request URI. 
+				3. This matched config is passed to ResponseBuilder::generateResponse() or CGIHandler::executeScript() (if needed)
+
+	}
+	-ErrorHandler 
+	{
+		Generate standard error responses (404, 500, etc. )
+		Return correct error responses when something fails. Tests: 
+			-404 Not Found with and without custom error page 
+			-500 Internal Server Error 
+			-405 Method not allowed 
+			-413 Payload to large 
+			-400 Bad request (invalid headers)
+		Tools:  
+			-Force errors deliberately and check responses via browser or curl
+
+		PURPOSE:
+			-Responsible for generating standard HTTP error responses: 404, 405, 500, 403, etc.
+			-Good because:
+				-Keeps error logic centralized and reusable
+				-Makes your server's behavior more professional and customizable
+				-Allows easy testing.
+
+		STORES:
+			-nothing 
+
+		FUNCTIONS:
+			-static HttpResponse generate(int status_code, const ServerConfig &config)
+				-input -> status_code: HTTP error code tto respond with 
+				-input -> config: current ServerConfig, which may deffine a custom error page.
+				-ouput -> a HttpResponse object with status line, headers and body.
+				EXPLANATION:
+					1. Check if a custom error page is configured
+							-If yes: read the file from disk, set it as the body set proper headers 
+					2. If not configured, use a default response 
+					3. Set correct status line and headers
+
+
+	}
+	-Utils
+	{
+		Hold common helper functions 
+		Supporting parsing and enconding with correctt edge case handling. Tests:
+			-urlDecode() handles %20, +, etc. 
+			-trim() removes spaces/tabs/newlines
+			-getFileExtension() works with paths with/without extensions 
+			-fileExists() handles relative and absolute paths 
+		Tools: 
+			-Unit test with known input/output strings 
+		PURPOSE:
+			-Provides common helper functions used throughout the web server.
+			-Small and reusable functions that don't belong to a specific class but are needed in many places
+
+		FUNCTIONS:
+			1. std::string trim(const std::string &str);
+				-Removes leading and trailing whitespaces from a string 
+				-Useful for clearing config values, request headers, etc.
+			2. std::string urlDecode(const std::string &encoded);
+				-Decodes percent-encoded characters in a URL
+				-Used when parsing request URIs
+			3. std::string getFileExtension(const std::string &path);
+				-Returns the file extension from a file path or URI 
+				-Useful when determining the MIME type for a file in ResponseBuilder 
+			4. std::string statusText(int code);
+				-Convert an Http status code to its human-readable description
+				-Used when building the status line of an HTTP response 
+			5. bool fileExists(const std::string &path);
+				-Checks if a file exists on disk and is accesible.
+				-Used when serving static files or checking custom error pages
+
+	}
+
+
++-----------------+        +------------------+
+| ServerManager   | <----> | ConfigParser     |
+| (poll, sockets) |        | (parses config)  |
++--------+--------+        +--------+---------+
+         |                          |
+         | Accept client            |
+         v                          |
++-----------------+                 |
+| Connection      |                 |
+| (client socket) |                 |
++--------+--------+                 |
+         |                          |
+         | Read data                |
+         v                          |
++-----------------+        +------------------+
+| RequestParser   | <----> | Router           |
+| (parse HTTP req)|        | (match server &  |
++--------+--------+        | location config) |
+         |                 +--------+---------+
+         |                          |
+         v                          |
++-----------------+                 |
+| ResponseBuilder |                 |
+| (build response)|                 |
++--------+--------+                 |
+         |                          |
+         | Send response            |
+         v                          |
++-----------------+                 |
+| CGIHandler      | <---------------+
+| (run CGI script)|
++-----------------+
+
+1. Write basic class headers for each module 
+2. Define data structures for configs 
+3. Start wiring the ServerManager to : Load config, create listening sockets, run the poll loop
+
