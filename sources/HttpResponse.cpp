@@ -45,17 +45,9 @@ std::string			HttpResponse::build()
 	//Create response line
 	buffer.append("HTTP/1.1 " + code + " " + this->status_text + "\r\n");
 	//Headers: 
-	if (this->headers.count("Content-Type"))
+	for (std::map<std::string,  std::string>::iterator it = this->headers.begin(); it != this->headers.end(); it++)
 	{
-		buffer.append("Content-Type: " + this->headers.at("Content-Type") + "\r\n");
-	}
-	if (this->headers.count("Content-Length"))
-	{
-		buffer.append("Content-Length: " + this->headers.at("Content-Length") + "\r\n");
-	}
-	if (this->headers.count("Connection"))
-	{
-		buffer.append("Connection: " + this->headers.at("Connection") + "\r\n");
+		buffer.append(it->first + ": " + it->second + "\r\n");
 	}
 	buffer.append("\r\n");
 	//End of headers + body

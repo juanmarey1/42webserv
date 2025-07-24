@@ -9,11 +9,15 @@ ConfigFileParser::ConfigFileParser()
 
 ConfigFileParser::ConfigFileParser(const ConfigFileParser &original)
 {
-
+	*this = original;
 }
 
 ConfigFileParser	&ConfigFileParser::operator=(const ConfigFileParser &original)
 {
+	if (this != &original)
+	{
+	
+	}
 	return (*this);
 }
 
@@ -28,7 +32,7 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 {
 	if (direction == "listen")
 	{
-		if (args.size() > 1)
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -44,12 +48,16 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 				}
 			}
 			server.port = atoi(args[0].c_str());
+			if (server.port < 1 || server.port > 65535)
+			{
+				throw IncorrectArgumentsExcept();
+			}
 		}
 		//listen 127.0.0.1
 		else if (args[0].find(':') == std::string::npos && args[0].find('.') != std::string::npos)
 		{
 			int	numberOfBlocks = 1;
-			int	i = 0;
+			size_t	i = 0;
 			int	numberOfNums = 0;
 	
 			while (i < args[0].size())
@@ -68,6 +76,14 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 				}
 				if (args[0][i] == '.')
 				{
+					if (!std::isdigit(args[0][i + 1]))
+					{
+						throw IncorrectArgumentsExcept();
+					}
+					if (numberOfNums == 0)
+					{
+						throw IncorrectArgumentsExcept();
+					}
 					numberOfBlocks++;
 					numberOfNums = 0;
 				}
@@ -81,6 +97,15 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 				}
 				i++;
 			}
+			if (numberOfNums == 3)
+			{
+				int	num = atoi(args[0].substr(i - 3, 3).c_str());
+				if (num > 255)
+				{
+					throw IncorrectArgumentsExcept();
+				}
+			}
+			// std::cout << numberOfBlocks <<  std::endl;
 			if (numberOfBlocks != 4)
 			{
 				throw IncorrectArgumentsExcept();
@@ -94,13 +119,18 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 			size_t 			dotPos = args[0].find('.');
 			size_t 			doubleDotPos = args[0].find(':');
 
+			if (!std::isdigit(args[0][args[0].find(':') + 1]))
+			{
+				throw IncorrectArgumentsExcept();
+			}
+
 			if (dotPos > doubleDotPos)
 			{
 				throw IncorrectArgumentsExcept();
 			}
 
 			int	numberOfBlocks = 1;
-			int	j = 0;
+			size_t	j = 0;
 			int	numberOfNums = 0;
 	
 			while (j < doubleDotPos)
@@ -119,6 +149,14 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 				}
 				if (args[0][j] == '.')
 				{
+					if (!std::isdigit(args[0][j + 1]))
+					{
+						throw IncorrectArgumentsExcept();
+					}
+					if (numberOfNums == 0)
+					{
+						throw IncorrectArgumentsExcept();
+					}
 					numberOfBlocks++;
 					numberOfNums = 0;
 				}
@@ -131,6 +169,14 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 					numberOfNums++;
 				}
 				j++;
+			}
+			if (numberOfNums == 3)
+			{
+				int	num = atoi(args[0].substr(j - 3, 3).c_str());
+				if (num > 255)
+				{
+					throw IncorrectArgumentsExcept();
+				}
 			}
 			if (numberOfBlocks != 4)
 			{
@@ -148,11 +194,15 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 				}
 			}
 			server.port = atoi(port.c_str());
+			if (server.port < 1 || server.port > 65535)
+			{
+				throw IncorrectArgumentsExcept();
+			}
 		}
 	}
 	else if (direction == "server_name")
 	{
-		if (args.size() > 1)
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -160,11 +210,46 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 	}
 	else if (direction == "root")
 	{
-		if (args.size() > 1)
+		if (!server.root.empty())
+		{
+			throw IncorrectArgumentsExcept();
+		}
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
 		server.root = args[0];
+		if (server.root[0] != '/')
+		{
+			throw IncorrectArgumentsExcept();
+		}
+		if (server.root.size() >= 3 && server.root[1] == '.' && server.root[2] == '.')
+		{
+			throw IncorrectArgumentsExcept();
+		}
+		if (!Utils::isDirectory(server.root))
+		{
+			throw IncorrectArgumentsExcept();
+		}
+	}
+	else if (direction == "autoindex")
+	{
+		if (args.size() != 1)
+		{
+			throw IncorrectArgumentsExcept();
+		}
+		if (args[0] == "on")
+		{
+			server.autoindex = true;
+		}
+		else if (args[0] == "off")
+		{
+			server.autoindex = false;
+		}
+		else 
+		{
+			throw IncorrectArgumentsExcept();
+		}
 	}
 	else if (direction == "error_page")
 	{
@@ -189,22 +274,44 @@ void								ConfigFileParser::parseDirective(ServerConfig &server, const std::st
 	}
 	else if (direction == "client_max_body_size")
 	{
-		if (args.size() > 1)
+		size_t k;
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
-		for (size_t j = 0; j < args[0].size(); j++)
+		for (k = 0; k < args[0].size() - 1; k++)
 		{
-			if (!std::isdigit(args[0][j]))
+			if (!std::isdigit(args[0][k]))
 			{
 				throw IncorrectArgumentsExcept();
 			}
 		}
-		server.client_max_body_size = atoi(args[0].c_str());
+		if (std::isdigit(args[0][k]))
+		{
+			server.client_max_body_size = atoi(args[0].c_str());
+		}
+		else if (args[0][k] == 'K' && args[0].size() > 1)
+		{
+			std::string	body_size = args[0].substr(0, args[0].size() - 1);
+			server.client_max_body_size = atoi(body_size.c_str()) * 1024;
+		}
+		else if (args[0][k] == 'M' && args[0].size() > 1)
+		{
+			std::string	body_size = args[0].substr(0, args[0].size() - 1);
+			server.client_max_body_size = atoi(body_size.c_str()) * 1024 * 1024;
+		}
+		else 
+		{
+			throw IncorrectArgumentsExcept();
+		}
 	}
 	//If direction == "index"
 	else if (direction == "index")
 	{
+		if (args.size() < 1)
+		{
+			throw IncorrectArgumentsExcept();
+		}
 		for (size_t i = 0; i < args.size(); i++)
 		{
 			std::string		indexName = args[i];
@@ -223,15 +330,60 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 {
 	if (direction == "root")
 	{
-		if (args.size() > 1)
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
 		location.root = args[0];
+		if (location.root[0] != '/')
+		{
+			throw IncorrectArgumentsExcept();
+		}
+		if (location.root.size() >= 3 && location.root[1] == '.' && location.root[2] == '.')
+		{
+			throw IncorrectArgumentsExcept();
+		}
+		if (!Utils::isDirectory(location.root))
+		{
+			throw IncorrectArgumentsExcept();
+		}
+	}
+	else if (direction == "client_max_body_size")
+	{
+		size_t k;
+		if (args.size() != 1)
+		{
+			throw IncorrectArgumentsExcept();
+		}
+		for (k = 0; k < args[0].size() - 1; k++)
+		{
+			if (!std::isdigit(args[0][k]))
+			{
+				throw IncorrectArgumentsExcept();
+			}
+		}
+		if (std::isdigit(args[0][k]))
+		{
+			location.client_max_body_size = atoi(args[0].c_str());
+		}
+		else if (args[0][k] == 'K' && args[0].size() > 1)
+		{
+			std::string	body_size = args[0].substr(0, args[0].size() - 1);
+			location.client_max_body_size = atoi(body_size.c_str()) * 1024;
+		}
+		else if (args[0][k] == 'M' && args[0].size() > 1)
+		{
+			std::string	body_size = args[0].substr(0, args[0].size() - 1);
+			location.client_max_body_size = atoi(body_size.c_str()) * 1024 * 1024;
+		}
+		else 
+		{
+			throw IncorrectArgumentsExcept();
+		}
 	}
 	else if (direction == "autoindex")
 	{
-		if (args.size() > 1)
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -250,7 +402,7 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 	}
 	else if (direction == "allowed_methods")
 	{
-		if (args.size() > 3)
+		if (args.size() > 3 || args.size() == 0)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -262,12 +414,28 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 			}
 			else 
 			{
-				location.allowed_methods.push_back(args[i]);
+				bool	methodAlready = false;
+				for (size_t j = 0; j < location.allowed_methods.size(); j++)
+				{
+					if (args[i] == location.allowed_methods[j])
+					{
+						methodAlready = true;
+						break;
+					}
+				}
+				if (!methodAlready)
+				{
+					location.allowed_methods.push_back(args[i]);
+				}
 			}
 		}
 	}
 	else if (direction == "index")
 	{
+		if (args.size() < 1)
+		{
+			throw IncorrectArgumentsExcept();
+		}
 		for (size_t i = 0; i < args.size(); i++)
 		{
 			std::string		indexName = args[i];
@@ -277,7 +445,7 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 	}
 	else if (direction == "return")
 	{
-		if (args.size() > 2)
+		if (args.size() > 2 || args.size() < 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -293,7 +461,7 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 		returnNumber = atoi(args[0].c_str());
 		if (args.size() == 1)
 		{
-			location.returnDirective[returnNumber] = nullptr;
+			location.returnDirective[returnNumber] = "";
 		}
 		else
 		{
@@ -302,7 +470,7 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 	}
 	else if (direction == "cgi_extension")
 	{
-		if (args.size() > 1)
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -310,7 +478,7 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 	}
 	else if (direction == "cgi_path")
 	{
-		if (args.size() > 1)
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -318,7 +486,7 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 	}
 	else if (direction == "upload_enable")
 	{
-		if (args.size() > 1)
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -337,7 +505,7 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 	}
 	else if (direction == "upload_store")
 	{
-		if (args.size() > 1)
+		if (args.size() != 1)
 		{
 			throw IncorrectArgumentsExcept();
 		}
@@ -386,7 +554,7 @@ bool								ConfigFileParser::isDirective(const std::string &token, const std::s
 }
 
 
-LocationConfig						ConfigFileParser::parseLocationBlock(const std::vector<std::string> &tokens, size_t &position)
+LocationConfig						ConfigFileParser::parseLocationBlock(const std::vector<std::string> &tokens, size_t &position, std::vector<LocationConfig> &locations)
 {
 	LocationConfig	location;
 
@@ -403,8 +571,26 @@ LocationConfig						ConfigFileParser::parseLocationBlock(const std::vector<std::
 			throw UnexpectedTokenExcept();
 		}
 		location.exactMatch = true;
-		location.locationPath = tokens[position + 1];
+		location.locationPath = tokens[position + 2];
+		if (location.locationPath[location.locationPath.size() - 1] == '/')
+		{
+			throw InvalidLocationExcept();
+		}
 		position = position + 4;
+	}
+	else 
+	{
+		throw InvalidLocationExcept();
+	}
+	for (size_t i = 0; i < locations.size(); i++)
+	{
+		// std::cout <<locations[i].locationPath << std::endl;
+		// std::cout << location.locationPath << std::endl;
+		if (location.locationPath == locations[i].locationPath)
+		{
+			locations.erase(locations.begin() + i);
+			break;
+		}
 	}
 	while (position < tokens.size() && tokens[position] != "}")
 	{
@@ -476,7 +662,7 @@ ServerConfig						ConfigFileParser::parseServerBlock(const std::vector<std::stri
 				{
 					throw InvalidLocationExcept();
 				}
-				location = parseLocationBlock(tokens, position);
+				location = parseLocationBlock(tokens, position, server.locations);
 				server.locations.push_back(location);
 			}
 			else if (directive)
@@ -511,9 +697,38 @@ ServerConfig						ConfigFileParser::parseServerBlock(const std::vector<std::stri
 	{
 		//After parsing the server and all the location blocks, we will give inherited values and default values in case some configurations are empty
 		server.check();
+		bool	defaultPath = false;
 		for (size_t i = 0; i < server.locations.size(); i++)
 		{
-			server.locations[i].check(server);
+			if (server.locations[i].locationPath == "/")
+			{
+				defaultPath = true;
+				break;
+			}
+		}
+		if (!defaultPath || server.locations.size() == 0)
+		{
+			LocationConfig	locationDef;
+			locationDef.locationPath = "/";
+			server.locations.push_back(locationDef);
+		}
+		for (size_t i = 0; i < server.locations.size(); i++)
+		{
+			server.check(server, server.locations[i]);
+			if (server.locations[i].locationPath[0] != '/')
+			{
+				throw InvalidLocationExcept();
+			}
+			for (size_t j = 0; j < server.locations.size(); j++)
+			{
+				if (j != i)
+				{
+					if (server.locations[i].locationPath == server.locations[j].locationPath)
+					{
+						throw InvalidLocationExcept();
+					}
+				}
+			}
 		}
 
 		position++;
@@ -532,6 +747,10 @@ void								ConfigFileParser::parseServers(const std::vector<std::string> &token
 			ServerConfig	server;
 	
 			position = position + 2;
+			if (tokens[position] == "}")
+			{
+				throw UnexpectedTokenExcept();
+			}
 			//Parses the server and advances position to where (tokens[position - 1] == '}')
 			server = parseServerBlock(tokens, position);
 			servers.push_back(server);
@@ -593,36 +812,53 @@ std::vector<ServerConfig>			ConfigFileParser::parse(const std::string &filename)
 {
 	//1. Read file into a string
 
-	std::ifstream	configFile(filename);
+	std::ifstream	configFile(filename.c_str());
 	std::string		buffer;	//We store the file in here
 	std::string		line;
 	std::vector<std::string>	tokens; 	//We store the tokens in here
 	std::vector<ServerConfig>	servers; 	//We store here the configuration of each of the servers
-	size_t						position;	//For iterate the servers when parsing
+	size_t						position = 0;	//For iterate the servers when parsing
 
 	if (!configFile.is_open())
 	{
 		throw	InvalidFileExcept();
 	}
-	
 	while (std::getline(configFile, line))
 	{
 		buffer.append(line);
+		buffer.append("\n");
+	}
+	size_t pos = buffer.find("#");
+	while (pos != std::string::npos)
+	{
+		size_t npos = buffer.find("\n", pos);
+		buffer = buffer.erase(pos, npos - pos);
+		pos = buffer.find("#");
 	}
 	configFile.close(); 
+	//debugging:
+	// std::cout << buffer << std::endl;
 
 	//We already have the content of the config file in buffer
 
 	//2. Tokenize the content and store it in a vector of token strings
 
 	tokenizer(buffer, tokens);
+	//debugging:
+	// for (size_t i = 0; i < tokens.size(); i++)
+	// {
+	// 	std::cout << tokens[i] << std::endl;
+	// }
 
 	//We now have all the information tokenized
 
 	//3. Parse Servers from tokens and store them in a vector of ServerConfig classes
 
 	parseServers(tokens, position, servers);
-
+	if (servers.size() == 0)
+	{
+		throw	InvalidFileExcept();
+	}
 	//Now we have the vector of servers ready to be returned
 
 	return (servers);

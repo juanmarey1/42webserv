@@ -42,7 +42,7 @@ ServerManager::~ServerManager()
 	}
 
 	//We close each of the FDs that were waiting for poll()
-	for (int i = 0; i < this->pollfds.size(); ++i)
+	for (size_t i = 0; i < this->pollfds.size(); ++i)
 	{
 		if (this->pollfds[i].fd >= 0)
 		{
@@ -66,7 +66,7 @@ void			ServerManager::loadConfigParsing(const std::string &filename)
 void			ServerManager::initSockets()
 {
 	//We create a new pair for each unique hostPort pair.
-	std::vector<std::pair<std::string, int>>	hostPortList;
+	std::vector<std::pair<std::string, int> >	hostPortList;
 	for (size_t i = 0; i < this->serversList.size(); i++)
 	{
 		std::pair<std::string, int>		hostPort;
@@ -172,7 +172,7 @@ void			ServerManager::run()
 void			ServerManager::acceptNewClient(int server_fd)
 {
 	//Accept incoming connection and returns a new socket descriptor for client
-	int	client_fd = accept(server_fd, nullptr, nullptr);
+	int	client_fd = accept(server_fd, NULL, NULL);
 	if (client_fd < 0)
 	{
 		return;
@@ -202,9 +202,23 @@ void			ServerManager::handleClientRequest(int client_fd)
 		if (this->clientConnections[client_fd]->isRequestComplete())
 		{
 			//We route it to the most precise server and location
+			//First we get a vector of all the servers that match the same ip and port of the current listening socket with this fd.
 			Router			router;
-			this->clientConnections[client_fd]->config = router.route(this->clientConnections[client_fd]->request, this->serversList);
+			std::string		ip;
+			int				port;
+			std::vector<ServerConfig>	matchServers;
 			
+			ip = this->listeningSockets[client_fd].ip;
+			port = this->listeningSockets[client_fd].port;
+			for (size_t i = 0; i < this->serversList.size(); i++)
+			{
+				if (this->serversList[i].port == port && this->serversList[i].ip == ip)
+				{
+					matchServers.push_back(this->serversList[i]);
+				}
+			}
+			//When we got our list of servers that match ip and port, we pass it for routing it.
+			this->clientConnections[client_fd]->config = router.route(this->clientConnections[client_fd]->request, matchServers);
 
 			//After routing it when it finishes parsing request, we change its state to POLLOUT
 			for (size_t i = 0; i < this->pollfds.size(); i++)
@@ -222,7 +236,7 @@ void			ServerManager::handleClientRequest(int client_fd)
 	}
 	if (this->clientConnections[client_fd]->isReadyToWrite())
 	{
-		if (!this->clientConnections[client_fd]->writeResponse())
+		if (!this->clientConnections[client_fd]->writeResponse(this->clientConnections[client_fd]->config.first))
 		{
 			closeClient(client_fd);
 		}

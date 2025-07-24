@@ -5,11 +5,12 @@ LocationConfig::LocationConfig()
 	this->locationPath = "";
 	this->root = "";
 	this->autoindex = false;
-	this->index = "";
 	this->cgi_extension = "";
 	this->cgi_path = "";
 	this->upload_enable = false;
 	this->upload_store = "";
+	this->exactMatch = false;
+	this->client_max_body_size = -1;
 }
 
 LocationConfig::LocationConfig(const LocationConfig &original)
@@ -24,6 +25,8 @@ LocationConfig::LocationConfig(const LocationConfig &original)
 	this->cgi_path = original.cgi_path;
 	this->upload_enable = original.upload_enable;
 	this->upload_store = original.upload_store;
+	this->exactMatch = original.exactMatch;
+	this->client_max_body_size = original.client_max_body_size;
 }
 
 LocationConfig		&LocationConfig::operator=(const LocationConfig &original)
@@ -40,6 +43,8 @@ LocationConfig		&LocationConfig::operator=(const LocationConfig &original)
 		this->cgi_path = original.cgi_path;
 		this->upload_enable = original.upload_enable;
 		this->upload_store = original.upload_store;
+		this->exactMatch = original.exactMatch;
+		this->client_max_body_size = original.client_max_body_size;
 	}
 	return (*this);
 }
@@ -49,14 +54,7 @@ LocationConfig::~LocationConfig()
 
 }
 
-void		LocationConfig::check(const ServerConfig &server)
+bool		LocationConfig::operator==(const LocationConfig &original) const
 {
-	if (this->root.empty())
-	{
-		this->root = server.root;
-	}
-	if (this->index.empty())
-	{
-		this->index = server.index;
-	}
+	return (this->allowed_methods == original.allowed_methods && this->autoindex == original.autoindex && this->cgi_extension == original.cgi_extension && this->cgi_path == original.cgi_path && this->index == original.index && this->locationPath == original.locationPath && this->returnDirective == original.returnDirective && this->root == original.root && this->upload_enable == original.upload_enable && this->upload_store == original.upload_store && this->client_max_body_size == original.client_max_body_size);
 }

@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <tuple>
 #include <stdexcept>
 #include <fstream>
 #include <sys/socket.h>
@@ -16,9 +15,17 @@
 #include <utility>
 #include <poll.h>
 #include <ctime>
+#include <sys/stat.h>
+#include <sstream>
+#include <iomanip>
+#include <sys/wait.h>
+#include <cstdio>
+#include <cctype>
+#include <cstdlib>
+#include <dirent.h>
 
-#ifndef BUFFERSIZE
-# define BUFFERSIZE 4096
+#ifndef BUFFER_SIZE
+# define BUFFER_SIZE 4096
 #endif
 
 
@@ -28,15 +35,16 @@
 // #include "token.hpp"
 // #include "connection.hpp"
 
-#include "ServerManager.hpp"
-#include "ServerConfig.hpp"
 #include "LocationConfig.hpp"
-#include "ConnectionHandler.hpp"
-#include "ConfigFileParser.hpp"
+#include "ServerConfig.hpp"
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
-#include "RequestParser.hpp"
+#include "ConnectionHandler.hpp"
+#include "ServerManager.hpp"
 #include "ResponseBuilder.hpp"
+#include "ConfigFileParser.hpp"
+#include "RequestParser.hpp"
 #include "Router.hpp"
 #include "ErrorHandler.hpp"
 #include "Utils.hpp"
+#include "CGIHandler.hpp"

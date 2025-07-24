@@ -1824,7 +1824,7 @@ SKETCH MAIN MODULES/CLASSES
 				EXPLANATION:
 					1. Use the function build() from the HttpResponse class to generate a response as a string (sendBuffer).
 					2. Uses send() to write bytes from sendBuffer to the socket fd.
-						-ssize_t sent = send(fd, sendBuffer.c_str() + sendOffset, response_str.size() - sendOffset, 0);
+						-ssize_t sent = send(fd, sendBuffer.c_str() + sendOffset, sendBuffer.size() - sendOffset, 0);
 						-It returns how many bytes were actually sent
 					3. If sent <= 0 -> return false -> to indicate error or closed connection;
 					4. sendOffset = sendOffset + sent -> Now we got the total number of bytes sent at the moment 
