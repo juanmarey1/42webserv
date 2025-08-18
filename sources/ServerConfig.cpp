@@ -61,10 +61,10 @@ void		ServerConfig::check(const ServerConfig &server, LocationConfig &location)
 	{
 		location.index = server.index;
 	}
-	if ((location.upload_enable == true && location.upload_store.empty()) || (location.upload_enable == false && !location.upload_store.empty()))
-	{
-		throw MissingDirectiveExcept();
-	}
+	// if ((location.upload_enable == true && location.upload_store.empty()) || (location.upload_enable == false && !location.upload_store.empty()))
+	// {
+	// 	throw MissingDirectiveExcept();
+	// }
 	if (location.allowed_methods.empty())
 	{
 		location.allowed_methods.push_back("GET");

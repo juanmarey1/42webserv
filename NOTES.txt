@@ -2221,3 +2221,13 @@ SKETCH MAIN MODULES/CLASSES
 2. Define data structures for configs 
 3. Start wiring the ServerManager to : Load config, create listening sockets, run the poll loop
 
+
+
+
+
+
+
+ServerManager
+ConnectionHandler
+
+TODO JUNTO

@@ -69,13 +69,17 @@ bool				ConnectionHandler::writeResponse(const ServerConfig &server)
 	//We build the object HttpResponse with the request Object and the server and locations.
 	ResponseBuilder		builder;
 
-	if (!this->request.error)
+	// std::cout << "[TRACE] - " << this->request.method << " " << this->request.uri << " " << this->request.version << std::endl;
+	if (this->request.error <= 0)
 	{
 		if (int(this->request.body.size()) > this->config.second.client_max_body_size)
 		{
-			this->request.body = this->request.body.substr(0, this->config.second.client_max_body_size);
+			this->response = ErrorHandler::generateHttpResponse(413, server);
 		}
-		this->response = builder.generateHttpResponse(this->request, this->config);
+		else 
+		{
+			this->response = builder.generateHttpResponse(this->request, this->config);
+		}
 	}
 	else 
 	{
@@ -89,7 +93,15 @@ bool				ConnectionHandler::writeResponse(const ServerConfig &server)
 	//If sent <= 0, an error occured and we have to close connection
 	if (sent <= 0)
 	{
-		return (false);
+		if (sent < 0)
+		{
+    		if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) 
+			{
+    		    // Temporary failure, caller can try again later
+    		    return true;
+    		}
+    	return false; // real error, close connection
+		}
 	}
 	this->sendOffset = this->sendOffset + sent;
 	if (this->sendOffset == this->sendBuffer.size())
@@ -139,6 +151,26 @@ bool				ConnectionHandler::isResponseComplete()
 }
 
 
+void 				ConnectionHandler::cleanConnection()
+{
+	this->state = READING;
+	this->buffer = "";
+	this->sendBuffer = "";
+	this->sendOffset = 0;
+	this->request.body = "";
+	this->request.headers.clear();
+	this->request.error = -1;
+	this->request.method = "";
+	this->request.uri = "";
+	this->request.version = "";
+	this->response.body = "";
+	this->response.headers.clear();
+	this->response.status_code = -1;
+	this->response.status_text = "";
+	return;
+}
+
+
 bool				ConnectionHandler::parseRequest()
 {
 	//We search for the end of headers, if we could not find it yet, we need to keep receiving information
@@ -164,6 +196,7 @@ bool				ConnectionHandler::parseRequest()
 	{
 		this->state = WRITING;
 		this->request = parser.getHttpRequest();
+		std::cout << "[TRACE] - " << this->request.method << " " << this->request.uri << " " << this->request.version << std::endl;
 		return (true);
 	}
 	
@@ -177,24 +210,36 @@ bool				ConnectionHandler::parseRequest()
 
 bool				ConnectionHandler::readRequest()
 {
-	if (state != READING)
+	while (true)
 	{
-		return (true);
-	}
-	//temp buffer to recv datta
-	char		tmpBuffer[BUFFER_SIZE];
-	//Read raw bytes 
-	ssize_t bytes = recv(this->fd, tmpBuffer, sizeof(tmpBuffer), 0);
-	if (bytes <= 0)
-	{
-		//An error ocurred
-		return (false);
-	}
+		if (state != READING)
+		{
+			return (true);
+		}
+		//temp buffer to recv datta
+		char		tmpBuffer[BUFFER_SIZE];
+		//Read raw bytes 
+		ssize_t bytes = recv(this->fd, tmpBuffer, sizeof(tmpBuffer), 0);
 
-	//Append the data to your internal request buffer
-	this->buffer.append(tmpBuffer, bytes);
-	//Update last activity timestamp
-	this->lastActivity = std::time(NULL);
-	//Try to parse full HTTP request, returns true if we there is no error.
+		if (bytes <= 0)
+		{
+			if (bytes < 0)
+			{
+				if (errno == EAGAIN || errno == EWOULDBLOCK)
+				{
+					return (parseRequest());
+				}
+			}
+			//An error ocurred
+			return (false);
+		}
+
+		//Append the data to your internal request buffer
+		this->buffer.append(tmpBuffer, bytes);
+		//Update last activity timestamp
+		this->lastActivity = std::time(NULL);
+		// std::cout << "Last activity : " << this->lastActivity << std::endl;
+		//Try to parse full HTTP request, returns true if we there is no error.
+	}
 	return (parseRequest());
 }

@@ -57,6 +57,7 @@ void			RequestParser::parseLine(const std::string &line)
 		firstLine = Utils::splitBySpaces(line);
 		if (firstLine.size() != 3)
 		{
+			// std::cout << "Invalid first lline" << std::endl;
 			this->phase = COMPLETE;
 			this->request.error = 400;
 			return ;
@@ -72,12 +73,14 @@ void			RequestParser::parseLine(const std::string &line)
 		this->request.uri = firstLine[1];
 		if (this->request.uri[0] != '/')
 		{
+			// std::cout << "Invalid uri" << std::endl;
 			this->phase = COMPLETE;
 			this->request.error = 400;
 			return ;
 		}
-		if (this->request.uri[1] == '.' && this->request.uri[2] == '.')
+		if (this->request.uri.size() > 1 && this->request.uri[1] == '.' && this->request.uri[2] == '.')
 		{
+			// std::cout << "Invalid uri" << std::endl;
 			this->phase = COMPLETE;
 			this->request.error = 400;
 			return ;
@@ -85,6 +88,7 @@ void			RequestParser::parseLine(const std::string &line)
 		//Checks the version
 		if (firstLine[2] != "HTTP/1.1\r")
 		{
+			// std::cout << "Invalid HTTP version" << std::endl;
 			this->phase = COMPLETE;
 			this->request.error = 400;
 			return ;
@@ -100,12 +104,18 @@ void			RequestParser::parseLine(const std::string &line)
 			//We check if it lacks the Host header (required in HTTP 1.1)
 			if (!this->request.headers.count("Host"))
 			{
+				// std::cout << "Missing host" << std::endl;
 				this->phase = COMPLETE;
 				this->request.error = 400;
 				return;
 			}
+			if (this->request.headers.find("Host")->second.find(":"))
+			{
+				this->request.headers["Host"] = this->request.headers["Host"].substr(0, this->request.headers.find("Host")->second.find(":") );
+			}
 			if (this->request.method == "POST" && !this->request.headers.count("Content-Length"))
 			{
+				// std::cout << "Missing content length" << std::endl;
 				this->phase = COMPLETE;
 				this->request.error = 400;
 				return;
@@ -141,7 +151,15 @@ void			RequestParser::parseLine(const std::string &line)
 				{
 					this->request.body.clear();
 				}
-				this->phase = BODY;
+				if (std::atoi(this->request.headers.find("Content-Length")->second.c_str()) == 0)
+				{
+					this->phase = COMPLETE;
+				}
+				else 
+				{
+					this->phase = BODY;
+
+				}
 			}
 			else
 			{
@@ -236,12 +254,7 @@ void			RequestParser::parseLine(const std::string &line)
 		{
 			this->request.headers["Accept-Encoding"] = value;
 		}
-		else 
-		{
-			this->phase = COMPLETE;
-			this->request.error = 400;
-			return ;
-		}
+	
 	}
 	else if (this->phase == BODY)
 	{

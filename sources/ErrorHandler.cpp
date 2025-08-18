@@ -38,7 +38,17 @@ HttpResponse	ErrorHandler::generateHttpResponse(int status_code, const ServerCon
 	if (config.error_page.count(status_code))
 	{
 		//ruta absoluta -> root + error page
-		std::string		path = config.root + config.error_page.at(status_code);
+		std::string rootError = config.root;
+		std::string errorPagePath = config.error_page.at(status_code);
+		if (Utils::ends_with(rootError,"/"))
+		{
+			rootError = rootError.substr(0, rootError.length() - 1);
+		}
+		if (errorPagePath[0] == '/')
+		{
+			errorPagePath = errorPagePath.substr(1);
+		}
+		std::string		path = rootError + "/" + errorPagePath;
 		std::ifstream	file(path.c_str());
 		
 		if (!file)
@@ -95,7 +105,7 @@ HttpResponse	ErrorHandler::generateHttpResponse(int status_code, const ServerCon
 		if (status_code == 400)
 		{
 			response.body = "<html><body><h1>400 Bad Request</h1><p>Your browser sent a request that this server could not understand.</p></body></html>";
-			response.status_text = "Not Found";
+			response.status_text = "Bad Request";
 		}
 		else if (status_code == 403)
 		{
@@ -129,6 +139,7 @@ HttpResponse	ErrorHandler::generateHttpResponse(int status_code, const ServerCon
 		}
 		response.headers["Content-Type"] = "text/html";
 	}
+	response.headers["Connection"] = "close";
 	std::ostringstream oss;
 	oss << response.body.size();
 	response.headers["Content-Length"] = oss.str();

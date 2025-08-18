@@ -10,6 +10,8 @@ class ServerManager
 		std::map<int, ServerConfig>				listeningSockets;		//We have a socket FD for each server with unique (Host, Port)
 		std::map<int, ConnectionHandler*>		clientConnections;		//We have a conection for each client socket FD
 		std::vector<pollfd>						pollfds;				//Vector containing a list of pollfd structs. Each one represents a socket FD that poll() monitors for events
+		std::map<int, ServerConfig>				clientToServerMap;
+		std::vector<int>						acceptedConections;
 
 		void		acceptNewClient(int server_fd);				//Accepts new client
 		void		handleClientRequest(int client_fd);			//Handles client requests

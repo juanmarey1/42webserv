@@ -3,7 +3,7 @@ NAME = webserv
 CC = c++
 RM = rm -rf
 EC = echo
-CFLAGS = -Wall -Wextra -Werror -std=c++98
+CFLAGS = -Wall -Wextra -Werror -std=c++98 -fsanitize=address -g
 
 INCLUDE_DIR = include
 INCLUDE = -I $(INCLUDE_DIR)

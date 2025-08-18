@@ -20,7 +20,7 @@
 // 	location1.allowed_methods.push_back("GET");
 // 	location1.allowed_methods.push_back("POST");
 // 	location1.cgi_extension = ".py";
-// 	location1.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location1.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	location1.autoindex = false;
 	
 // 	std::cout << "\nTEST 1 .......................................... VALID CGI SCRIPT EXECUTION\n" << std::endl;
@@ -51,7 +51,7 @@
 // 	LocationConfig	location2;
 // 	location2.locationPath = "/cgi-bin/";
 // 	location2.cgi_extension = ".py";
-// 	location2.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location2.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	std::cout << "\nTEST 2 .......................................... CORRECT ENVIRONMENT VARIABLES\n" << std::endl;
 // 	HttpResponse	response2 = handler2.executeScript(request2, location2, server);
 
@@ -65,7 +65,7 @@
 // 	location3.locationPath = "/cgi-bin/";
 // 	location3.allowed_methods.push_back("GET");
 // 	location3.cgi_extension = ".py";
-// 	location3.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location3.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	HttpRequest request3;
 // 	request3.method = "GET";
 // 	request3.version = "HTTP/1.1";
@@ -91,7 +91,7 @@
 // 	location4.allowed_methods.push_back("GET");
 // 	location4.allowed_methods.push_back("POST");
 // 	location4.cgi_extension = ".py";
-// 	location4.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";  // full absolute path preferred
+// 	location4.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";  // full absolute path preferred
 // 	// location4.autoindex = false;
 // 	HttpRequest	request4;
 // 	request4.method = "POST";
@@ -117,10 +117,10 @@
 // 	CGIHandler	handler5;
 // 	LocationConfig	location5;
 // 	location5.cgi_extension = ".py";
-// 	location5.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location5.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	location5.allowed_methods.push_back("GET");
 // 	location5.allowed_methods.push_back("POST");
-// 	location5.root = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www";
+// 	location5.root = "/home/jrey-roj/juanma/webserv/tests/var/www";
 // 	location5.locationPath = "/cgi-bin/";
 
 // 	HttpRequest	request5;
@@ -146,7 +146,7 @@
 // 	CGIHandler	handler6;
 // 	LocationConfig	location6;
 // 	location6.locationPath = "/cgi-bin/";
-// 	location6.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location6.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	HttpRequest	request6;
 // 	request6.version = "HTTP/1.1";
 // 	request6.uri = "/cgi-bin/notfound.py";
@@ -178,7 +178,7 @@
 // 	location7.allowed_methods.push_back("GET");
 // 	location7.allowed_methods.push_back("POST");
 // 	location7.cgi_extension = ".py";
-// 	location7.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location7.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	location7.autoindex = false;
 
 // 	std::cout << "\nTEST 7 .......................................... CGI SCRIPT NOT executabel\n" << std::endl;
@@ -207,7 +207,7 @@
 // 	location8.allowed_methods.push_back("GET");
 // 	location8.allowed_methods.push_back("POST");
 // 	location8.cgi_extension = ".py";
-// 	location8.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location8.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	location8.autoindex = false;
 // 	std::cout << "\nTEST 8 .......................................... CGI malformed headers\n" << std::endl;
 // 	HttpResponse	response8  = handler8.executeScript(request8, location8, server);
@@ -235,7 +235,7 @@
 // 	location9.allowed_methods.push_back("GET");
 // 	location9.allowed_methods.push_back("POST");
 // 	location9.cgi_extension = ".py";
-// 	location9.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location9.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	location9.autoindex = false;
 // 	std::cout << "\nTEST 9 .......................................... cgi WRITES NOTHING\n" << std::endl;
 // 	HttpResponse	response9  = handler9.executeScript(request9, location9, server);
@@ -262,7 +262,7 @@
 // 	location.allowed_methods.push_back("GET");
 // 	location.allowed_methods.push_back("POST");
 // 	location.cgi_extension = ".py";
-// 	location.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	location.autoindex = false;
 
 // 	std::cout << "\nTEST 10 .......................................... incorrect order headers-body\n" << std::endl;
@@ -316,7 +316,7 @@
 // 	location12.allowed_methods.push_back("GET");
 // 	location12.allowed_methods.push_back("POST");
 // 	location12.cgi_extension = ".py";
-// 	location12.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location12.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	location12.autoindex = false;
 // 	std::cout << "\nTEST 12.......................................... no host\n" << std::endl;
 // 	HttpResponse response12  = handler12.executeScript(request12, location, server);
@@ -345,7 +345,7 @@
 // 	location13.allowed_methods.push_back("GET");
 // 	location13.allowed_methods.push_back("POST");
 // 	location13.cgi_extension = ".py";
-// 	location13.cgi_path = "/home/jrey-roj/juanma/webserv_nogit/tests/var/www/cgi-bin/";
+// 	location13.cgi_path = "/home/jrey-roj/juanma/webserv/tests/var/www/cgi-bin/";
 // 	location13.autoindex = false;
 // 	std::cout << "\nTEST 13.......................................... REDIRECT\n" << std::endl;
 // 	HttpResponse response13  = handler13.executeScript(request13, location13, server);

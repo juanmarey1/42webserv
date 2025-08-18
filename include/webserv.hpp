@@ -23,9 +23,14 @@
 #include <cctype>
 #include <cstdlib>
 #include <dirent.h>
+#include <cerrno>
 
 #ifndef BUFFER_SIZE
 # define BUFFER_SIZE 4096
+#endif
+
+#ifndef TIMEOUT
+# define TIMEOUT 5 * 60
 #endif
 
 

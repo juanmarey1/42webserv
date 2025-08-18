@@ -343,6 +343,7 @@ void								ConfigFileParser::parseDirective(LocationConfig &location, const std
 		{
 			throw IncorrectArgumentsExcept();
 		}
+
 		if (!Utils::isDirectory(location.root))
 		{
 			throw IncorrectArgumentsExcept();
@@ -537,7 +538,7 @@ bool								ConfigFileParser::isBlockStart(const std::string &token, const std::
 
 bool								ConfigFileParser::isDirective(const std::string &token, const std::string block)
 {
-	if ((token == "listen" || token == "server_name" || token == "root" || token == "error_page" || token == "client_max_body_size" || token == "index") && block == "server")
+	if ((token == "listen" || token == "server_name" || token == "root" || token == "error_page" || token == "client_max_body_size" || token == "index" || token == "autoindex") && block == "server")
 	{
 		//returns true if it is a server directive and we are in a server block. Else false
 		return (true);
@@ -588,6 +589,20 @@ LocationConfig						ConfigFileParser::parseLocationBlock(const std::vector<std::
 		// std::cout << location.locationPath << std::endl;
 		if (location.locationPath == locations[i].locationPath)
 		{
+			if (location.exactMatch)
+			{
+				if (!locations[i].exactMatch)
+				{
+					continue;
+				}
+			}
+			else if (locations[i].exactMatch)
+			{
+				if (!location.exactMatch)
+				{
+					continue;
+				}
+			}
 			locations.erase(locations.begin() + i);
 			break;
 		}
@@ -725,6 +740,10 @@ ServerConfig						ConfigFileParser::parseServerBlock(const std::vector<std::stri
 				{
 					if (server.locations[i].locationPath == server.locations[j].locationPath)
 					{
+						if ((server.locations[i].exactMatch && !server.locations[j].exactMatch) || (!server.locations[i].exactMatch && server.locations[j].exactMatch))
+						{
+							continue;
+						}
 						throw InvalidLocationExcept();
 					}
 				}

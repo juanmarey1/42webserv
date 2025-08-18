@@ -58,7 +58,13 @@ void				CGIHandler::setupEnv(const HttpRequest &request, const LocationConfig &l
 	}
 	else 
 	{
-		this->env.push_back("QUERY_STRING=" + filename.substr(questionQuery + 1));
+		std::string queryStr = filename.substr(questionQuery + 1);
+		size_t pos1 = queryStr.find("%20");
+    	while (pos1 != std::string::npos) {
+    	    queryStr.replace(pos1, 3, " ");
+			pos1 = queryStr.find("%20");
+    	}
+		this->env.push_back("QUERY_STRING=" + queryStr);
 	}
 
 	if (request.method == "POST")
@@ -95,10 +101,10 @@ void				CGIHandler::setupEnv(const HttpRequest &request, const LocationConfig &l
 	}
 
 	//DEBUGGING
-	for (size_t i = 0; i < this->env.size(); i++)
-	{
-		std::cout << this->env[i] << std::endl;
-	}
+	// for (size_t i = 0; i < this->env.size(); i++)
+	// {
+	// 	std::cout << this->env[i] << std::endl;
+	// }
 
 }
 
@@ -172,7 +178,7 @@ int				CGIHandler::forkExecute(const std::string &scriptPath, const HttpRequest 
 			this->cgiOutput.append(buffer, n);
 		}
 		//DEBUGGING
-		std::cout << cgiOutput << std::endl;
+		// std::cout << cgiOutput << std::endl;
 
 		close(pipeFromChild[0]);
 

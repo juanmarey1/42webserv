@@ -114,24 +114,30 @@ std::string 		ResponseBuilder::generateAutoIndexHtml(const std::string& dirPath)
 
     DIR* dir = opendir(dirPath.c_str());
     if (!dir)
+	{
         return ("");
+	}
 
     struct dirent* entry;
     while ((entry = readdir(dir)) != NULL)
     {
         std::string name = entry->d_name;
-        if (name == ".") continue;
+        if (name == ".")
+		{
+			continue;
+		}
 
         std::string href = name;
         if (entry->d_type == DT_DIR)
+		{
             href += "/";
-
+		}
         html += "<li><a href=\"" + href + "\">" + name + "</a></li>";
     }
     closedir(dir);
 
     html += "</ul></body></html>";
-    return html;
+    return (html);
 }
 
 
@@ -153,7 +159,7 @@ std::string			ResponseBuilder::getPath(const bool exactMatch, const std::string 
 		{
 			newUri = "/" + uri;
 		}
-		std::cout << "root: " << newRoot << " + uri: " << newUri << " = path: " << path << std::endl;
+		// std::cout << "root: " << newRoot << " + uri: " << newUri << " = path: " << path << std::endl;
 		path = newRoot + newUri;
 	}
 	else 
@@ -170,7 +176,7 @@ std::string			ResponseBuilder::getPath(const bool exactMatch, const std::string 
 			{
 				newUri = "/" + uri;
 			}
-			std::cout << "server root: " << newRoot << " + uri: " << newUri << " = path: " << path << std::endl;
+			// std::cout << "server root: " << newRoot << " + uri: " << newUri << " = path: " << path << std::endl;
 			path = newRoot + newUri;
 		}
 		else 
@@ -185,12 +191,12 @@ std::string			ResponseBuilder::getPath(const bool exactMatch, const std::string 
 			{
 				newUri = "/" + newUri;
 			}
-			std::cout << "location root: " << newRoot << " + uri - location path: " << newUri << " = path: " << path << std::endl;
+			// std::cout << "location root: " << newRoot << " + uri - location path: " << newUri << " = path: " << path << std::endl;
 			path = newRoot + newUri;
 		}
 	}
 
-	std::cout << path << std::endl;
+	// std::cout << path << std::endl;
 	
 	//If the path is a directory, we match it with the indexes provided and we create the path
 	if (Utils::isDirectory(path))
@@ -280,6 +286,7 @@ std::string			ResponseBuilder::generateFilename(const std::string &mime) {
     char buffer[64];
 	std::strftime(buffer, sizeof(buffer), "%Y%m%d_%H%M%S", tm);
 	oss << "upload_" << buffer << extension;
+	// std::cout << oss.str() << std::endl;
     return oss.str();
 }
 
@@ -303,11 +310,69 @@ HttpResponse		ResponseBuilder::generateHttpResponse(const HttpRequest &request, 
 	{
 		return (ErrorHandler::generateHttpResponse(405, server));
 	}
+	if (!location.returnDirective.empty())
+	{
+		std::map<int, std::string>::iterator it = location.returnDirective.begin();
+		response.status_code = it->first;
+		if (it->first == 301)
+		{
+			response.status_text = "Moved Permanently";
+			response.headers["Location"] = it->second;
+		}
+		else if (it->first == 302)
+		{
+			response.status_text = "Found";
+			response.headers["Location"] = it->second;
+		}
+		else if (it->first == 307)
+		{
+			response.status_text = "Temporary Redirect";
+			response.headers["Location"] = it->second;
+		}
+		else if (it->first == 308)
+		{
+			response.status_text = "Permanent Redirect";
+			response.headers["Location"] = it->second;
+		}
+		else if (it->first == 400 || it->first == 403 || it->first == 404 || it->first == 500)
+		{
+			return (ErrorHandler::generateHttpResponse(it->first, server));
+		}
+		else if (it->first == 200)
+		{
+			response.status_text = "OK";
+		}
+		else 
+		{
+			return (ErrorHandler::generateHttpResponse(501, server));
+		}
+		if (request.headers.count("Connection"))
+		{
+			if (request.headers.find("Connection")->second == "close")
+			{
+				response.headers["Connection"] = "close";
+			}
+			else 
+			{
+				response.headers["Connection"] = "keep-alive";
+			}
+		}
+		else 
+		{
+			response.headers["Connection"] = "keep-alive";
+		}
+		return (response);
+	}
 
 	//2. method GET
 	if (request.method == "GET")
 	{
-		if (location.cgi_extension != "" || location.cgi_path != "")
+		std::string newUri = request.uri;
+		if (newUri.find("?") != std::string::npos)
+		{
+			newUri = newUri.substr(0, newUri.find("?"));
+		}
+		if ((location.cgi_extension != "" || location.cgi_path != "") && Utils::ends_with(newUri, location.cgi_extension))
 		{
 			CGIHandler	cgiHandler;
 			response = cgiHandler.executeScript(request, location, server);
@@ -315,7 +380,7 @@ HttpResponse		ResponseBuilder::generateHttpResponse(const HttpRequest &request, 
 		else 
 		{
 			//First we get the path of the file.
-			std::string		path = getPath(location.exactMatch, request.method, server.root, location.root, location.locationPath, request.uri, location.index, location.autoindex);
+			std::string		path = getPath(location.exactMatch, request.method, server.root, location.root, location.locationPath, newUri, location.index, location.autoindex);
 			if (path == "404")
 			{
 				return (ErrorHandler::generateHttpResponse(404, server));
@@ -386,7 +451,12 @@ HttpResponse		ResponseBuilder::generateHttpResponse(const HttpRequest &request, 
 	//3. method POST
 	else if (request.method == "POST")
 	{
-		if (location.cgi_extension != "" || location.cgi_path != "")
+		std::string newUri = request.uri;
+		if (newUri.find("?") != std::string::npos)
+		{
+			newUri = newUri.substr(0, newUri.find("?"));
+		}
+		if ((location.cgi_extension != "" || location.cgi_path != "") && Utils::ends_with(newUri, location.cgi_extension))
 		{
 			CGIHandler	cgiHandler;
 			response = cgiHandler.executeScript(request, location, server);
@@ -396,30 +466,93 @@ HttpResponse		ResponseBuilder::generateHttpResponse(const HttpRequest &request, 
 			//we search the path to upload and creeatte the name of the nuew file
 			std::string uploadPath;
 
+			if (!location.upload_enable)
+			{
+				return (ErrorHandler::generateHttpResponse(403, server));
+			}
+			// IF UPLOAD PATH -> we store it in there. Else: ROOT + URI
 			if (location.upload_store != "")
 			{
 				uploadPath = location.upload_store;
 			}
 			else 
 			{
-				uploadPath = "/var/www/uploads";
+				std::string postRoot = location.root;
+				std::string postUri = newUri;
+				if (Utils::ends_with(postRoot, "/"))
+				{
+					postRoot = postRoot.substr(0, postRoot.length() - 1);
+				}
+				if (postUri[0] == '/')
+				{
+					postUri = postUri.substr(1);
+				}
+				uploadPath = postRoot + "/" + postUri;
+			}
+			if (!request.headers.count("Content-Type"))
+			{
+				return (ErrorHandler::generateHttpResponse(400, server));
+			}
+			if (uploadPath.find("?") != std::string::npos)
+			{
+				return (ErrorHandler::generateHttpResponse(405, server));
+			}
+			if (request.body.size() > (size_t)location.client_max_body_size)
+			{
+				return (ErrorHandler::generateHttpResponse(413, server));
 			}
 			std::string mime = request.headers.find("Content-Type")->second;
-			std::string fileName = generateFilename(mime);
-			uploadPath = uploadPath + "/" + fileName;
+			std::string fileName;
+			//If we have a directory -> we generate a file path
+			if (Utils::isDirectory(uploadPath))
+			{
+				fileName = generateFilename(mime);
+				if (uploadPath[uploadPath.size() - 1] == '/')
+				{
+					uploadPath = uploadPath.substr(0, uploadPath.size() - 1);
+				}
+				uploadPath = uploadPath + "/" + fileName;
+			}
+			if (uploadPath.substr(0, std::string("/home/jrey-roj/juanma/webserv/servDir/upload/").length()).find("/home/jrey-roj/juanma/webserv/servDir/upload/"))
+			{
+				return (ErrorHandler::generateHttpResponse(403, server));
+			}
 
 			//now we create the file and write all teh request body in it
-			std::ofstream	file(uploadPath.c_str(), std::ios::binary);
-			if (!file.is_open())
+			//We check iff the file exists in order to append it or creatte it
+			if (!Utils::fileExists(uploadPath))
 			{
-				throw InvalidPathExcept();
+				std::ofstream	file(uploadPath.c_str(), std::ios::binary);
+				if (!file.is_open())
+				{
+					return (ErrorHandler::generateHttpResponse(500, server));
+				}
+				if (access(uploadPath.c_str(), W_OK) != 0)
+				{
+					return (ErrorHandler::generateHttpResponse(403, server));
+				}
+				file.write(request.body.c_str(), request.body.size());
+				file.close();
+				response.status_code = 201;
+				response.status_text = "Created";
 			}
-			file.write(request.body.c_str(), request.body.size());
-			file.close();
+			else 
+			{
+				std::ofstream file;
+				file.open(uploadPath.c_str(), std::ios::out | std::ios::app);
+				if (!file.is_open())
+				{
+					return (ErrorHandler::generateHttpResponse(500, server));
+				}
+				file << request.body.c_str();
+				file.close();
+				response.status_code = 200;
+				response.status_text = "OK";
+			}
 
 			//now we create the body and check the connection header
-			response.status_code = 201;
-			response.status_text = "OK";
+			response.headers["Content-Type"] = "text/plain";
+			response.headers["Content-Length"] = "24";
 			if (request.headers.count("Connection"))
 			{
 				if (request.headers.find("Connection")->second == "close")
@@ -435,16 +568,35 @@ HttpResponse		ResponseBuilder::generateHttpResponse(const HttpRequest &request, 
 			{
 				response.headers["Connection"] = "keep-alive";
 			}
+			response.body = "File uploaded successfully";
 			return (response);
 		}
+		return (response);
 	}
 	
 	//4. method DELETE
 	else 
 	{
+		std::string newUri = request.uri;
+		if (newUri.find("?") != std::string::npos)
+		{
+			newUri = newUri.substr(0, newUri.find("?"));
+		}
 		//we get the file to remove
-		std::string path = getPath(location.exactMatch, request.method, server.root, location.root, location.locationPath, request.uri, location.index, location.autoindex);
+		std::string path = getPath(location.exactMatch, request.method, server.root, location.root, location.locationPath, newUri, location.index, location.autoindex);
 		//remove it
+		if (access(path.c_str(), W_OK) != 0)
+		{
+			return (ErrorHandler::generateHttpResponse(403, server));
+		}
+		if (Utils::isDirectory(path))
+		{
+			return (ErrorHandler::generateHttpResponse(400, server));
+		}
+		if (path.substr(0, std::string("/home/jrey-roj/juanma/webserv/servDir/upload/").length()).find("/home/jrey-roj/juanma/webserv/servDir/upload/"))
+		{
+			return (ErrorHandler::generateHttpResponse(403, server));
+		}
 		if (std::remove(path.c_str()) == 0)
 		{
 			//We setup status code (we don't want a message body)
@@ -471,8 +623,7 @@ HttpResponse		ResponseBuilder::generateHttpResponse(const HttpRequest &request, 
 		}
 		else 
 		{
-			return (response);
-			//Throw an error
+			return (ErrorHandler::generateHttpResponse(404, server));
 		}
 	}
 	return (response);

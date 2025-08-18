@@ -6,7 +6,7 @@
 // 	//TEST1
 // 	ConfigFileParser	configParser;
 // 	std::cout << "\nTEST 1 ....................................... SINGLE SERVER\n" << std::endl;
-// 	std::vector<ServerConfig>	servers = configParser.parse("/home/jrey-roj/juanma/webserv_nogit/tests/var/www/configFile1.config");
+// 	std::vector<ServerConfig>	servers = configParser.parse("/home/jrey-roj/juanma/webserv/tests/var/www/configFile1.config");
 // 	for (size_t i = 0; i < servers.size(); i++)
 // 	{
 // 		std::cout << "SERVER: " << i << std::endl;
@@ -34,7 +34,7 @@
 
 // 	ConfigFileParser	configParser2;
 // 	std::cout << "\nTEST 2 ....................................... MULTIPLE SERVER\n" << std::endl;
-// 	std::vector<ServerConfig>	servers2 = configParser2.parse("/home/jrey-roj/juanma/webserv_nogit/tests/var/www/configFile2.config");
+// 	std::vector<ServerConfig>	servers2 = configParser2.parse("/home/jrey-roj/juanma/webserv/tests/var/www/configFile2.config");
 // 	for (size_t i = 0; i < servers2.size(); i++)
 // 	{
 // 		std::cout << "SERVER: " << i + 1 << std::endl;
@@ -63,7 +63,7 @@
 
 // 	ConfigFileParser	configParser3;
 // 	std::cout << "\nTEST 3 ....................................... server with location\n" << std::endl;
-// 	std::vector<ServerConfig>	servers3 = configParser3.parse("/home/jrey-roj/juanma/webserv_nogit/tests/var/www/configFile3.config");
+// 	std::vector<ServerConfig>	servers3 = configParser3.parse("/home/jrey-roj/juanma/webserv/tests/var/www/configFile3.config");
 // 	for (size_t i = 0; i < servers3.size(); i++)
 // 	{
 // 		std::cout << "SERVER: " << i + 1 << std::endl;
@@ -129,7 +129,7 @@
 
 // 	ConfigFileParser	configParser4;
 // 	std::cout << "\nTEST 4 ....................................... multiple nested location\n" << std::endl;
-// 	std::vector<ServerConfig>	servers4 = configParser4.parse("/home/jrey-roj/juanma/webserv_nogit/tests/var/www/configFile4.config");
+// 	std::vector<ServerConfig>	servers4 = configParser4.parse("/home/jrey-roj/juanma/webserv/tests/var/www/configFile4.config");
 // 	for (size_t i = 0; i < servers4.size(); i++)
 // 	{
 // 		std::cout << "SERVER: " << i + 1 << std::endl;
