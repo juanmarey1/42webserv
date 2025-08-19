@@ -190,7 +190,6 @@ bool				ConnectionHandler::parseRequest()
 	{
 		parser.parseLine(line);
 	}
-
 	//If our request is complete, we save our HttpRequest and we will use it to write our response. We change our connection state to WRITING (the response)
 	if (parser.isRequestComplete())
 	{

@@ -318,21 +318,25 @@ HttpResponse		ResponseBuilder::generateHttpResponse(const HttpRequest &request, 
 		{
 			response.status_text = "Moved Permanently";
 			response.headers["Location"] = it->second;
+			response.headers["Content-Length"] = "0";
 		}
 		else if (it->first == 302)
 		{
 			response.status_text = "Found";
 			response.headers["Location"] = it->second;
+			response.headers["Content-Length"] = "0";
 		}
 		else if (it->first == 307)
 		{
 			response.status_text = "Temporary Redirect";
 			response.headers["Location"] = it->second;
+			response.headers["Content-Length"] = "0";
 		}
 		else if (it->first == 308)
 		{
 			response.status_text = "Permanent Redirect";
 			response.headers["Location"] = it->second;
+			response.headers["Content-Length"] = "0";
 		}
 		else if (it->first == 400 || it->first == 403 || it->first == 404 || it->first == 500)
 		{

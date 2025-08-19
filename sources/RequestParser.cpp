@@ -54,6 +54,12 @@ void			RequestParser::parseLine(const std::string &line)
 	{
 		std::vector<std::string>	firstLine;
 		
+		if (!line[0])
+		{
+			this->phase = COMPLETE;
+			this->request.error = 400;
+			return ;
+		}
 		firstLine = Utils::splitBySpaces(line);
 		if (firstLine.size() != 3)
 		{
