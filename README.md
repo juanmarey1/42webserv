@@ -21,6 +21,7 @@ make run    # Build executable and clean object files
 make clean  # Remove object files
 make fclean # Remove object files and executable
 make re     # Clean + build fresh executable
+```
 
 ---
 
@@ -30,4 +31,6 @@ Run the server with a path to your configuration file:
 
 ```bash
 ./webserv <path_to_configuration_file>
+
+```
 
